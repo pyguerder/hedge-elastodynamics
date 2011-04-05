@@ -1,0 +1,68 @@
+$Density
+density_rho
+$EndDensity
+
+$Permeability
+permeability_mu
+$EndPermeability
+
+$Permittivity
+permittivity_epsilon
+$EndPermittivity
+
+$LinearElasticConstants
+C11 C12 C13 C14 C15 C16
+  * C22 C23 C24 C25 C26
+  *   * C33 C34 C35 C36
+  *   *   * C44 C45 C46
+  *   *   *   * C55 C56
+  *   *   *   *   * C66
+$EndLinearElasticConstants
+
+$NonlinearityType
+nonlinearity_type
+$EndNonlinearityType
+
+$NonlinearElasticConstants
+C111 C112 C113 C114 C115 C116
+   * C122 C123 C124 C125 C126
+   *    * C133 C134 C135 C136
+   *    *    * C144 C145 C146
+   *    *    *    * C155 C156
+   *    *    *    *    * C166
+
+   *    *    *    *    *    * 
+   * C222 C223 C224 C225 C226
+   *    * C233 C234 C235 C236
+   *    *    * C244 C245 C246
+   *    *    *    * C255 C256
+   *    *    *    *    * C266
+
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    * C333 C334 C335 C336
+   *    *    * C344 C345 C346
+   *    *    *    * C355 C356
+   *    *    *    *    * C366
+
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    * C444 C445 C446
+   *    *    *    * C455 C456
+   *    *    *    *    * C466
+
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    * C555 C556
+   *    *    *    *    * C566
+
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    *    *    * 
+   *    *    *    *    * C666
+$EndNonlinearElasticConstants

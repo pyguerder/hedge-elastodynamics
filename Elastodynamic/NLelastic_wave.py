@@ -18,6 +18,7 @@
 
 
 from __future__ import division
+import sys
 import numpy
 import numpy.linalg as la
 from hedge.mesh import TAG_ALL, TAG_NONE
@@ -25,44 +26,55 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 
 
 
-def main(write_output=True, 
-        stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE, 
-        flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64):
+def main(write_output=True,
+        stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
+        flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float32):
     from pytools.stopwatch import Job
     from math import sin, cos, pi, exp, sqrt
     from Materials2 import Material
     from hedge.backends import guess_run_context
     rcon = guess_run_context(
-			     #["mpi"]
+			     ["mpi"]
 			     #["cuda"]
 			     )
 
-    dim = 3
+    dim = 2
 
     if dim == 1:
         if rcon.is_head_rank:
             from hedge.mesh.generator import make_uniform_1d_mesh
             mesh = make_uniform_1d_mesh(-10, 10, 500)
 
+            aluminium = Material('Materials/aluminium.dat', dtype=dtype)
+            rho0 = aluminium.rho
+            C = aluminium.C
+            Cnl = aluminium.Cnl
+
     elif dim == 2:
         from hedge.mesh.generator import make_rect_mesh
-        from hedge.mesh.reader.gmsh import read_gmsh
+	from hedge.mesh.reader.gmsh import read_gmsh
         if rcon.is_head_rank:
-	    mesh = read_gmsh('../../../meshes/gmsh/Lamb2Dmod.msh', force_dimension=2, periodicity=None,
+	    mesh = read_gmsh('MeshElastodynamic1.msh', force_dimension=2, periodicity=None,
                               allow_internal_boundaries=False,
                               tag_mapper=lambda tag: tag)
+
+            aluminium = Material('Materials/calcite.dat', dtype=dtype)
+            rho0 = aluminium.rho
+            C = aluminium.C
+	    print >> sys.stdout, "C:", C
+            Cnl = aluminium.Cnl
 
     elif dim == 3:
         if rcon.is_head_rank:
             from hedge.mesh.generator import make_ball_mesh
             mesh = make_ball_mesh(max_volume=0.0008)
 
+            aluminium = Material('Materials/aluminium.dat', dtype=dtype)
+            rho0 = aluminium.rho
+            C = aluminium.C
+            Cnl = aluminium.Cnl
     else:
         raise RuntimeError, "bad number of dimensions"
-
-    aluminium = Material('Materials/aluminium.dat', dtype=dtype)
-    rho0 = aluminium.rho
-    C = aluminium.C
 
     if rcon.is_head_rank:
         print "%d elements" % len(mesh.elements)
@@ -71,18 +83,18 @@ def main(write_output=True,
         mesh_data = rcon.receive_mesh()
 
     def source_v_x(x, el):
-        x = x - numpy.array([1720.0,-2303.28,13.2])
+	#x = x - numpy.array([0.1,0.1])
         return exp(-numpy.dot(x, x)*128)
 
   # from hedge.models.elastodynamic import ElastoDynamicsOperator
-    from elastodynamic import ElastoDynamicsOperator
+    from elastodynamic import NLElastoDynamicsOperator
     from hedge.mesh import TAG_ALL, TAG_NONE
     from hedge.data import \
             make_tdep_given, \
             TimeHarmonicGivenFunction, \
             TimeIntervalGivenFunction
 
-    op = ElastoDynamicsOperator(dimensions=dim, rho=rho0, C=C,
+    op = NLElastoDynamicsOperator(dimensions=dim, rho=rho0, C=C, Cnl=Cnl,
             source=TimeIntervalGivenFunction(
                 TimeHarmonicGivenFunction(
                     make_tdep_given(source_v_x), omega=50000),
@@ -108,7 +120,7 @@ def main(write_output=True,
 
     from hedge.tools import join_fields
     fields = join_fields([discr.volume_zeros(dtype=dtype) for i in range(discr.dimensions)],
-            [discr.volume_zeros(dtype=dtype) for i in range(op.dimF[discr.dimensions])])
+            [discr.volume_zeros(dtype=dtype) for i in range(discr.dimensions**2)])
 
     from hedge.discretization import Filter, ExponentialFilterResponseFunction
     #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=4))
@@ -149,7 +161,7 @@ def main(write_output=True,
         from hedge.timestep import times_and_steps
 
         step_it = times_and_steps(
-                final_time=4.0, logmgr=None,
+                final_time=4.0, logmgr=logmgr,
                 max_dt_getter=lambda t: op.estimate_timestep(discr,
                     stepper=stepper, t=t, fields=fields))
 

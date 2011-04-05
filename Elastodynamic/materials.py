@@ -16,6 +16,7 @@
 
 from __future__ import division
 import numpy
+import sys
 
 def Properties_Mat(dtype,material="Aluminium",dim=2):
     
@@ -90,7 +91,17 @@ def Properties_Mat(dtype,material="Aluminium",dim=2):
 	raise RuntimeError, "Material not defined"
 
     for i in range(dim**2):
-	for j in range(dim**2):
+        for j in range(dim**2):
             CIJ[i,j] = C[conv[i],conv[j]]    
 
     return rho, CIJ
+
+rho, CIJ = Properties_Mat(float, 'Aluminium', dim=1)
+print >> sys.stdout, "Rho:", rho
+print >> sys.stdout, "CIJ:", CIJ
+rho, CIJ = Properties_Mat(float, 'Aluminium', dim=2)
+print >> sys.stdout, "Rho:", rho
+print >> sys.stdout, "CIJ:", CIJ
+rho, CIJ = Properties_Mat(float, 'Aluminium', dim=3)
+print >> sys.stdout, "Rho:", rho
+print >> sys.stdout, "CIJ:", CIJ
