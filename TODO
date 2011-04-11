@@ -3,3 +3,23 @@ TODO:
 * Dans Hedge, comment utiliser une liste de valeurs comme source ? (voir make_tdep_given et adapter pour avoir la même sortie que TimeIntervalGivenFunction)
 	-> voir volume_interpolant et éventuellement linéariser entre deux points du tableau de temps
 * Dans Gmsh, comment tagger une interface entre 2 éléments ? (ligne ou surface)
+
+; Tests
+* Faire tourner le programme sur des cas physiques connus
+* Installer Paraview et Silo (cf. mailing-list pour Silo)
+
+; Ajouts
+* Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
+* Introduire les zones absorbantes (NPML ; v. exemple électromagnétique et comparer)
+* Introduire les pertes thermovisqueuses (cf. tools_second order)
+* Introduire des conditions de périodicité (travailler sur une cellule et extrapoler à un système périodique infini)
+
+; Modifications profondes
+* Introduire les milieux hétérogènes (cf. em.py) (constantes deviennent des variables)
+** ou : introduire la multiphysique (définir des domaines et stocker les constantes par domaine)
+** chaque élément du maillage aurait un tag material et l'opérateur serait différent selon les matériaux
+** comment gérer les interfaces ? c'est MPI qui doit s'en occuper
+
+; Améliorations
+* MPI : chercher sur la mailing-list pourquoi certains programmes ne sont pas compatibles avec MPI
+* Déplacer fichiers temporaires vers un sous-dossier
