@@ -25,19 +25,19 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 
 
 
-def main(write_output=True, 
-        stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE, 
-        flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64):
+def main(write_output=True,allow_features='mpi',
+         stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
+         flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64, dim = 1):
     from pytools.stopwatch import Job
     from math import sin, cos, pi, exp, sqrt
-    from Materials2 import Material
+    from Materials import Material
     from hedge.backends import guess_run_context
-    rcon = guess_run_context(
-			     #["mpi"]
-			     #["cuda"]
-			     )
+    rcon = guess_run_context(allow_features)
 
-    dim = 3
+    if allow_features == 'cuda':
+        dtype = numpy.float32
+    elif allow_features == 'mpi':
+        dtype = numpy.float64
 
     if dim == 1:
         if rcon.is_head_rank:
@@ -48,7 +48,7 @@ def main(write_output=True,
         from hedge.mesh.generator import make_rect_mesh
         from hedge.mesh.reader.gmsh import read_gmsh
         if rcon.is_head_rank:
-	    mesh = read_gmsh('../../../meshes/gmsh/Lamb2Dmod.msh', force_dimension=2, periodicity=None,
+	    mesh = read_gmsh('Meshes/MeshElastodynamic1.msh', force_dimension=2, periodicity=None,
                               allow_internal_boundaries=False,
                               tag_mapper=lambda tag: tag)
 
@@ -60,9 +60,9 @@ def main(write_output=True,
     else:
         raise RuntimeError, "bad number of dimensions"
 
-    aluminium = Material('Materials/aluminium.dat', dtype=dtype)
-    rho0 = aluminium.rho
-    C = aluminium.C
+    material = Material('Materials/calcite.dat', dtype=dtype)
+    rho0 = material.rho
+    C = material.C
 
     if rcon.is_head_rank:
         print "%d elements" % len(mesh.elements)
@@ -71,7 +71,8 @@ def main(write_output=True,
         mesh_data = rcon.receive_mesh()
 
     def source_v_x(x, el):
-        x = x - numpy.array([1720.0,-2303.28,13.2])
+        #x = x - numpy.array([1720.0,-2303.28,13.2])
+        x = x - numpy.array([1720.0,-2303.28])
         return exp(-numpy.dot(x, x)*128)
 
   # from hedge.models.elastodynamic import ElastoDynamicsOperator
@@ -149,9 +150,9 @@ def main(write_output=True,
         from hedge.timestep import times_and_steps
 
         step_it = times_and_steps(
-                final_time=4.0, logmgr=None,
-                max_dt_getter=lambda t: op.estimate_timestep(discr,
-                    stepper=stepper, t=t, fields=fields))
+                                  final_time=4.0,
+                                  logmgr=None, #None or logmgr
+                                  max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
 
         for step, t, dt in step_it:
             if step % 10 == 0 and write_output:

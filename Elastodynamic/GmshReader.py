@@ -179,6 +179,6 @@ class GmshReader:
         else:
             print "No PointReceiver in this file"
 
-#myGmsh = GmshReader('Lamb2D.msh', 3)
+#myGmsh = GmshReader('Meshes/Lamb2D.msh', 3)
 #print 'PointReceiver:', myGmsh.pointReceivers
 #print 'PointSource:', myGmsh.pointSources

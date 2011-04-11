@@ -26,55 +26,45 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 
 
 
-def main(write_output=True,
-        stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
-        flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float32):
+def main(write_output=True,allow_features='',
+         stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
+         flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64, dim = 2):
     from pytools.stopwatch import Job
     from math import sin, cos, pi, exp, sqrt
-    from Materials2 import Material
+    from Materials import Material
     from hedge.backends import guess_run_context
-    rcon = guess_run_context(
-			     ["mpi"]
-			     #["cuda"]
-			     )
+    rcon = guess_run_context(allow_features)
 
-    dim = 2
+    if allow_features == 'cuda':
+        dtype = numpy.float32
+    elif allow_features == 'mpi':
+        dtype = numpy.float64
 
     if dim == 1:
         if rcon.is_head_rank:
             from hedge.mesh.generator import make_uniform_1d_mesh
             mesh = make_uniform_1d_mesh(-10, 10, 500)
 
-            aluminium = Material('Materials/aluminium.dat', dtype=dtype)
-            rho0 = aluminium.rho
-            C = aluminium.C
-            Cnl = aluminium.Cnl
-
     elif dim == 2:
         from hedge.mesh.generator import make_rect_mesh
-	from hedge.mesh.reader.gmsh import read_gmsh
+        from hedge.mesh.reader.gmsh import read_gmsh
         if rcon.is_head_rank:
-	    mesh = read_gmsh('MeshElastodynamic1.msh', force_dimension=2, periodicity=None,
+	    mesh = read_gmsh('Meshes/MeshElastodynamic1.msh', force_dimension=2, periodicity=None,
                               allow_internal_boundaries=False,
                               tag_mapper=lambda tag: tag)
-
-            aluminium = Material('Materials/calcite.dat', dtype=dtype)
-            rho0 = aluminium.rho
-            C = aluminium.C
-	    print >> sys.stdout, "C:", C
-            Cnl = aluminium.Cnl
 
     elif dim == 3:
         if rcon.is_head_rank:
             from hedge.mesh.generator import make_ball_mesh
             mesh = make_ball_mesh(max_volume=0.0008)
 
-            aluminium = Material('Materials/aluminium.dat', dtype=dtype)
-            rho0 = aluminium.rho
-            C = aluminium.C
-            Cnl = aluminium.Cnl
     else:
         raise RuntimeError, "bad number of dimensions"
+
+    material = Material('Materials/calcite.dat', dtype=dtype)
+    rho0 = material.rho
+    C = material.C
+    Cnl = material.Cnl
 
     if rcon.is_head_rank:
         print "%d elements" % len(mesh.elements)
@@ -95,6 +85,7 @@ def main(write_output=True,
             TimeIntervalGivenFunction
 
     op = NLElastoDynamicsOperator(dimensions=dim, rho=rho0, C=C, Cnl=Cnl,
+            nonlinearity_type="classical",
             source=TimeIntervalGivenFunction(
                 TimeHarmonicGivenFunction(
                     make_tdep_given(source_v_x), omega=50000),
@@ -161,9 +152,9 @@ def main(write_output=True,
         from hedge.timestep import times_and_steps
 
         step_it = times_and_steps(
-                final_time=4.0, logmgr=logmgr,
-                max_dt_getter=lambda t: op.estimate_timestep(discr,
-                    stepper=stepper, t=t, fields=fields))
+                                  final_time=4.0,
+                                  logmgr=None, #None or logmgr
+                                  max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
 
         for step, t, dt in step_it:
             if step % 10 == 0 and write_output:
