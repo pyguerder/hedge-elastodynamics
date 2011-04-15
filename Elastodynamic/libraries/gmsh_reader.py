@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
-# Loads the physical points of a Gmsh file using the gmsh reader
+"""Loads the physical points of a Gmsh file using the Gmsh reader"""
 
-import gmsh
+from __future__ import division
 
 __copyright__ = "Copyright (C) 2011 Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>"
 
@@ -26,8 +26,8 @@ class GmshReader:
         try:
             self.file = open (filename, 'r')
         except IOError, message:
-            print >> sys.stderr, 'Failed to open file: ', message
-            sys.exit(1);
+            print 'Failed to open file: ', message
+            raise RuntimeError("Failed to open file")
 
         if dim == 1 or dim == 2 or dim == 3:
             self.dim = dim

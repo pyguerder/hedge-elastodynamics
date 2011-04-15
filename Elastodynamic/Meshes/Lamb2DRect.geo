@@ -1,0 +1,20 @@
+Point(1) = {0, 0, 0, 1e+22};
+Point(2) = {0, -2500, 0, 1e+22};
+Point(3) = {4000, -2500, 0, 1e+22};
+Point(4) = {4000, 0, 0, 1e+22};
+Point(5) = {500, -1000, 0, 1e+22};
+Point(6) = {1000, -1000, 0, 1e+22};
+Point(7) = {1500, -1000, 0, 1e+22};
+Line(1) = {1, 4};
+Line(2) = {4, 3};
+Line(3) = {3, 2};
+Line(4) = {2, 1};
+Circle(5) = {5, 6, 7};
+Circle(6) = {7, 6, 5};
+Line Loop(9) = {1, 2, 3, 4, -5, -6};
+Plane Surface(9) = {9};
+Line Loop(10) = {6, 5};
+Plane Surface(10) = {10};
+
+Physical Surface("mat1") = {9};
+Physical Surface("mat2") = {10};

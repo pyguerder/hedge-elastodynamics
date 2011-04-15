@@ -1,10 +1,7 @@
-# -*- coding: utf8 -*-
-# Loads a material into matrixes from a text file
-import sys
-import numpy
-from scipy import triu
-import UserString
-import pprint
+# -*- coding: utf-8 -*-
+"""Loads a material into matrixes from a text file"""
+
+from __future__ import division
 
 __copyright__ = "Copyright (C) 2011 Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>"
 
@@ -22,6 +19,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see U{http://www.gnu.org/licenses/}.
 """
+
+import sys
+import numpy
+from scipy import triu
 
 class Material:
     # Initialize the material from the given file

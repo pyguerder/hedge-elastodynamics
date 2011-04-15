@@ -1,9 +1,13 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 """Operator for non linear Elastodynamics equations."""
 
 from __future__ import division
 
-__copyright__ = "Copyright (C) 2007 Hendrik Riedmann, Andreas Kloeckner"
+__copyright__ = """
+Copyright (C) 2010-2011:
+* Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>
+* Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>
+"""
 
 __license__ = """
 This program is free software: you can redistribute it and/or modify
@@ -21,91 +25,10 @@ along with this program.  If not, see U{http://www.gnu.org/licenses/}.
 """
 
 
-
 import numpy
-import hedge.tools
-import hedge.mesh
-import hedge.data
 from hedge.models import HyperbolicOperator
 from pytools import Record
-from hedge.tools import is_zero
-
-class Utils:
-
-    conv_2D = numpy.array([
-                    [1, 3],
-                    [4, 2]])
-    conv_3D = numpy.array([
-                    [1, 6, 5],
-                    [9, 2, 4],
-                    [8, 7, 3]
-                    ])
-    conv_2D_sym = numpy.array([
-                    [1, 6],
-                    [6, 2]])
-    conv_3D_sym = numpy.array([
-                    [1, 6, 5],
-                    [6, 2, 4],
-                    [5, 4, 3]
-                    ])
-
-
-    def convert_dim(C, dim):
-
-        conv = numpy.zeros(dim**2, dtype=int)
-
-        if dim == 1:
-            conv[0] = 1
-        elif dim == 2:
-            conv[0] = 1
-            conv[1] = 2
-            conv[2] = 6
-            conv[3] = 6
-        elif dim == 3:
-            conv[0] = 1
-            conv[1] = 2
-            conv[2] = 3
-            conv[3] = 4
-            conv[4] = 5
-            conv[5] = 6
-            conv[6] = 4
-            conv[7] = 5
-            conv[8] = 6
-        else:
-            raise RuntimeError, "Bad number of dimensions"
-
-        Ceq = numpy.zeros((dim**2, dim**2))
-        for i in range(dim**2):
-            for j in range(dim**2):
-                Ceq[i,j] = C[conv[i]-1,conv[j]-1]
-        return Ceq
-
-    def condense(i, j, dim):
-        if dim == 1:
-            return 1
-        elif dim == 2:
-            return Utils.conv_2D[i, j]
-        elif dim == 3:
-            return Utils.conv_3D[i, j]
-
-    def condense_sym(i, j, dim):
-        if dim == 1:
-            return 1
-        elif dim == 2:
-            return Utils.conv_2D_sym[i, j]
-        elif dim == 3:
-            return Utils.conv_3D_sym[i, j]
-
-    def kronecker(i, j):
-        if i == j :
-            return 1
-        else :
-            return 0
-
-    convert_dim = staticmethod(convert_dim)
-    kronecker = staticmethod(kronecker)
-    condense = staticmethod(condense)
-    condense_sym = staticmethod(condense_sym)
+from libraries.utils import Utils
 
 
 class NLElastoDynamicsOperator(HyperbolicOperator):
@@ -135,17 +58,19 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
                  C,                             # 6×6 matrix
                  Cnl,                           # 6×6×6 tensor
                  nonlinearity_type = "classical",
-                 stressfree_tag="stressfree",
-                 fixed_tag="fixed",
-                 open_tag="open",
+                 boundaryconditions_tag = \
+                    { 'stressfree' : 'stressfree',
+                      'fixed' : 'fixed',
+                      'open' : 'open' },
                  source=None,
                  flux_type = "lf",
-            ):
+                 ):
         """
         :param source: should implement
         :class:`hedge.data.IFieldDependentGivenFunction`
         or be None.
         """
+        from hedge.data import make_tdep_constant
 
         self.dimensions = dimensions
 
@@ -156,31 +81,29 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
         self.MIJK = self.M()
         self.rho = rho
 
-        self.stressfree_tag = stressfree_tag
-        self.fixed_tag = fixed_tag
-        self.open_tag = open_tag
-
+        self.boundaryconditions_tag = boundaryconditions_tag
         self.source = source
         self.flux_type = flux_type
 
         self.nonlinearity_type = nonlinearity_type
+        self.state_null = make_tdep_constant(0)
 
-    def rho_v(self, state):
-        return state[0:self.dimensions]
+    def rho_v(self, q):
+        return q[0:self.dimensions]
 
-    def F(self, state):
-        return state[self.dimensions:(self.dimensions+1)*self.dimensions]
+    def F(self, q):
+        return q[self.dimensions:(self.dimensions+1)*self.dimensions]
 
-    def v(self, state):
+    def v(self, q):
         from pytools.obj_array import make_obj_array
         return make_obj_array([
                 rho_v_i/self.rho
-                for rho_v_i in self.rho_v(state)])
+                for rho_v_i in self.rho_v(q)])
 
-    def P(self, state):
+    def P(self, q):
         Pi = numpy.zeros((self.dimensions**2), dtype=object)
-        Ceq = self.C_eq(state)
-        F = self.F(state)
+        Ceq = self.C_eq(q)
+        F = self.F(q)
         for i in range(self.dimensions**2):
             for j in range(self.dimensions**2):
                 Pi[i] += Ceq[i,j]*F[j]
@@ -211,10 +134,10 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
                                     + self.C[IK, LM] * Utils.kronecker(j,n)
         return M
 
-    def C_eq(self, state):
+    def C_eq(self, q):
         if self.nonlinearity_type == "classical":
             C = numpy.zeros((self.dimensions**2,self.dimensions**2), dtype=object)
-            F = self.F(state)
+            F = self.F(q)
             for i in range(self.dimensions**2):
                 for j in range(self.dimensions**2):
                     for k in range(self.dimensions**2):
@@ -223,20 +146,20 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
             C = self.Ceq
         return C
 
-    def flux_num(self, state, fluxes, bdry_tags_state_and_fluxes):
+    def flux_num(self, q, fluxes, bdry_tags_state_and_fluxes):
         from hedge.flux import FluxVectorPlaceholder, make_normal
         from hedge.optemplate import get_flux_operator, BoundaryPair
         from pytools.obj_array import join_fields
         from math import sqrt
 
-        n = len(state)
+        n = len(q)
         d = len(fluxes)
         fvph = FluxVectorPlaceholder(n*(d+1))
         state_ph  = fvph[0:n]
         fluxes_ph = [fvph[i*n:(i+1)*n] for i in range(1,d+1)]
 
         normal = make_normal(d)
-        penalty = sqrt(self.C[0,0]/self.rho)*(state_ph.ext-state_ph.int)
+        penalty = sqrt(self.Ceq[0,0]/self.rho)*(state_ph.ext-state_ph.int)
 
         flux_strong = 0.5*sum(n_i*(f_i.int-f_i.ext) for n_i, f_i in zip(normal, fluxes_ph))
 
@@ -245,20 +168,18 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
         elif self.flux_type == "lf":
             flux_strong = 0.5*penalty + flux_strong
         else:
-            raise ValueError("invalid flux type '%s'" % self.flux_type)
+            raise ValueError("Invalid flux type '%s'" % self.flux_type)
 
         flux_op = get_flux_operator(flux_strong)
-        int_operand = join_fields(state,*fluxes)
+        int_operand = join_fields(q,*fluxes)
 
         return (flux_op(int_operand)
                 +sum(flux_op(BoundaryPair(int_operand, join_fields(bdry_state, *bdry_fluxes), tag))
-                        for tag, bdry_state, bdry_fluxes in bdry_tags_state_and_fluxes))
+                     for tag, bdry_state, bdry_fluxes in bdry_tags_state_and_fluxes))
 
     def op_template(self):
         from hedge.optemplate import \
                 Field, \
-                BoundaryPair, \
-                get_flux_operator, \
                 make_nabla, \
                 InverseMassOperator, \
                 BoundarizeOperator
@@ -270,160 +191,133 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
         dim = self.dimensions
 
         def flux(q):
+            P = self.P(q)
+            v = self.v(q)
+            v_null = Field('state_null')
+            
             if dim == 1:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[0],
-
-                            # flux F
-                            -self.v(q)[0]
+                            -P[0],  # flux rho_v
+                            -v[0]   # flux F
                             ), "x_flux")
                         ]
 
             elif dim == 2:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[0],-self.P(q)[3],
-
-                            # flux F
-                            -self.v(q)[0],0,0,-self.v(q)[1]
+                            -P[0],-P[3],              # flux rho_v
+                            -v[0],v_null,v_null,-v[1] # flux F
                             ), "x_flux"),
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[2],-self.P(q)[1],
-
-                            # flux F
-                            0,-self.v(q)[1],-self.v(q)[0],0
+                            -P[2],-P[1],              # flux rho_v
+                            v_null,-v[1],-v[0],v_null # flux F
                             ), "y_flux")
                         ]
-            else:
+            elif dim == 3:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[0],-self.P(q)[8],-self.P(q)[7],
-
-                            # flux F
-                            -self.v(q)[0],0,0,0,0,0,0,-self.v(q)[2],-self.v(q)[1]
+                            -P[0],-P[8],-P[7],                                          # flux rho_v
+                            -v[0],v_null,v_null,v_null,v_null,v_null,v_null,-v[2],-v[1] # flux F
                             ), "x_flux"),
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[5],-self.P(q)[1],-self.P(q)[6],
-
-                            # flux F
-                            0,-self.v(q)[1],0,0,0,-self.v(q)[0],-self.v(q)[2],0,0
+                            -P[5],-P[1],-P[6],                                          # flux rho_v
+                            v_null,-v[1],v_null,v_null,v_null,-v[0],-v[2],v_null,v_null # flux F
                             ), "y_flux"),
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[4],-self.P(q)[3],-self.P(q)[2],
-
-                            # flux F
-                            0,0,-self.v(q)[2],-self.v(q)[1],-self.v(q)[0],0,0,0,0
+                            -P[4],-P[3],-P[2],                                          # flux rho_v
+                            v_null,v_null,-v[2],-v[1],-v[0],v_null,v_null,v_null,v_null # flux F
                             ), "z_flux")
                         ]
+            else:
+                raise ValueError("Invalid dimension")
 
-        def bdry_flux(q_bdry, tag):
+        def bdry_flux(q_bdry, q_null, tag):
             # stress free BCs -------------------------------------------------------
-            if tag == self.stressfree_tag:
+            if tag == self.boundaryconditions_tag['stressfree']:
                 signP = 1
                 signv = -1
             # fixed BCs -------------------------------------------------------------
-            elif tag == self.fixed_tag:
+            elif tag == self.boundaryconditions_tag['fixed']:
                 signP = -1
                 signv = 1
             else:
-                raise ValueError("invalid Bdry conditions")
+                raise ValueError("Invalid boundary conditions")
+
+            P = self.P(q_bdry)
+            v = self.v(q_bdry)
+            v_null = q_null
 
             if dim == 1:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[0],
-
-                            # flux F
-                            signv*self.v(q_bdry)[0]
+                            signP*P[0], # flux rho_v
+                            signv*v[0]  # flux F
                             ), "x_bflux")
                         ]
             elif dim == 2:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[0],signP*self.P(q_bdry)[3],
-
-                            # flux F
-                            signv*self.v(q_bdry)[0],0,0,signv*self.v(q_bdry)[1]
+                            signP*P[0],signP*P[3],              # flux rho_v
+                            signv*v[0],v_null,v_null,signv*v[1] # flux F
                             ), "x_bflux"),
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[2],signP*self.P(q_bdry)[1],
-
-                            # flux F
-                            0,signv*self.v(q_bdry)[1],signv*self.v(q_bdry)[0],0
+                            signP*P[2],signP*P[1],              # flux rho_v
+                            v_null,signv*v[1],signv*v[0],v_null # flux F
                             ), "y_bflux")
                         ]
-            else:
+            elif dim == 3:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[0],signP*self.P(q_bdry)[8],signP*self.P(q_bdry)[7],
-
-                            # flux F
-                            signv*self.v(q_bdry)[0],0,0,0,0,0,0,signv*self.v(q_bdry)[2],signv*self.v(q_bdry)[1]
+                            signP*P[0],signP*P[8],signP*P[7],                                          # flux rho_v
+                            signv*v[0],v_null,v_null,v_null,v_null,v_null,v_null,signv*v[2],signv*v[1] # flux F
                             ), "x_bflux"),
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[5],signP*self.P(q_bdry)[1],signP*self.P(q_bdry)[6],
-
-                            # flux F
-                            0,signv*self.v(q_bdry)[1],0,0,0,signv*self.v(q_bdry)[0],signv*self.v(q_bdry)[2],0,0
+                            signP*P[5],signP*P[1],signP*P[6],                                          # flux rho_v
+                            v_null,signv*v[1],v_null,v_null,v_null,signv*v[0],signv*v[2],v_null,v_null # flux F
                             ), "y_bflux"),
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[4],signP*self.P(q_bdry)[3],signP*self.P(q_bdry)[2],
-
-                            # flux F
-                            0,0,signv*self.v(q_bdry)[2],signv*self.v(q_bdry)[1],signv*self.v(q_bdry)[0],0,0,0,0
-                            ), "z_bflux"),
+                            signP*P[4],signP*P[3],signP*P[2],                                          # flux rho_v
+                            v_null,v_null,signv*v[2],signv*v[1],signv*v[0],v_null,v_null,v_null,v_null # flux F
+                            ), "z_bflux")
                         ]
+            else:
+                raise ValueError("Invalid dimension")
 
 
-        state = make_vector_field("q", dim*(dim+1))
-        #rho_v = state[0:dim]
-        #F = state[dim:dim*(dim+1)]
+        q = make_vector_field('q', dim*(dim+1))
 
         # fluxes ------------------------------------------------------------
-        fluxes = flux(state)
+        fluxes = flux(q)
 
         # boundary conditions ---------------------------------------------------
-        state_bc_stressfree = BoundarizeOperator(self.stressfree_tag)(state)
-        state_bc_fixed      = BoundarizeOperator(self.fixed_tag)(state)
+        state_bc_stressfree = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(q)
+        state_bc_stressfree_null = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(0)
+        state_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(q)
+        state_bc_fixed_null = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(0)
 
         all_tags_and_bcs = [
-                (self.stressfree_tag, state_bc_stressfree),
-                (self.fixed_tag, state_bc_fixed)
+                (self.boundaryconditions_tag['stressfree'], state_bc_stressfree, state_bc_stressfree_null),
+                (self.boundaryconditions_tag['fixed'], state_bc_fixed, state_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, bdry_flux(bc, tag)) for tag, bc in all_tags_and_bcs]
+        bdry_tags_state_and_fluxes = [(tag, bc, bdry_flux(bc, bc_null, tag)) for tag, bc, bc_null in all_tags_and_bcs]
 
         # entire operator -----------------------------------------------------
         from math import sin, cos, pi
         nabla = make_nabla(dim)
 
-        result = (-numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(state,fluxes,bdry_tags_state_and_fluxes)))
+        result = (-numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(q,fluxes,bdry_tags_state_and_fluxes)))
 
         if self.source is not None:
-            result[0] += Field("source_v_x")*sin(10*pi/180)
-            result[1] += Field("source_v_x")*cos(10*pi/180)
+            result[0] += Field('source_v_x')*sin(10*pi/180)
+            result[1] += Field('source_v_x')*cos(10*pi/180)
 
         return result
 
     def bind(self, discr):
         from hedge.mesh import check_bc_coverage
-        check_bc_coverage(discr.mesh, [
-            self.stressfree_tag,
-            self.fixed_tag,
-            self.open_tag])
+        check_bc_coverage(discr.mesh, self.boundaryconditions_tag.values())
 
         compiled_op_template = discr.compile(self.op_template())
 
@@ -431,7 +325,8 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
             extra_kwargs = {}
 
             if self.source is not None:
-                extra_kwargs["source_v_x"] = self.source.volume_interpolant(t, discr)
+                extra_kwargs['source_v_x'] = self.source.volume_interpolant(t, discr)
+            extra_kwargs['state_null'] = self.state_null.volume_interpolant(t, discr)
 
             return compiled_op_template(q=q,**extra_kwargs)
 
@@ -440,8 +335,7 @@ class NLElastoDynamicsOperator(HyperbolicOperator):
     def max_eigenvalue(self, t, fields=None, discr=None):
         from math import sqrt
 
-        return sqrt(self.C[0,0]/self.rho)
-
+        return sqrt(self.Ceq[0,0]/self.rho)
 
 
 class ElastoDynamicsOperator(HyperbolicOperator):
@@ -463,19 +357,23 @@ class ElastoDynamicsOperator(HyperbolicOperator):
 
     Field order is [rho_v_1, rho_v_2, rho_v_3, F_11, F_22, F_33, 2*F_23, 2*F_13, 2*F_12].
     """
-    def __init__(self, dimensions, rho,
-            C, stressfree_tag="stressfree",
-            fixed_tag="fixed",
-            open_tag="open",
-            source=None,
-            flux_type = "lf",
-            dimF=None,
-            ):
+    def __init__(self,
+                 dimensions,
+                 rho,
+                 C,                           #6×6 matrix
+                 boundaryconditions_tag = \
+                    { 'stressfree' : 'stressfree',
+                      'fixed' : 'fixed',
+                      'open' : 'open' },
+                 source=None,
+                 flux_type = "lf",
+                 ):
         """
         :param source: should implement
         :class:`hedge.data.IFieldDependentGivenFunction`
         or be None.
         """
+        from hedge.data import make_tdep_constant
 
         self.dimensions = dimensions
         self.dimF = [0, 1, 3, 6]
@@ -484,12 +382,10 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         self.Ceq = Utils.convert_dim(self.C, self.dimensions)
         self.rho = rho
 
-        self.stressfree_tag = stressfree_tag
-        self.fixed_tag = fixed_tag
-        self.open_tag = open_tag
-
+        self.boundaryconditions_tag = boundaryconditions_tag
         self.source = source
         self.flux_type = flux_type
+        self.state_null = make_tdep_constant(0)
 
     def rho_v(self, q):
         return q[0:self.dimensions]
@@ -508,29 +404,32 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         F = self.F(q)
         for i in range(self.dimF[self.dimensions]):
             for j in range(self.dimF[self.dimensions]):
-                    Pi[i] += self.Ceq[i,j]*F[j]
+                Pi[i] += self.Ceq[i,j]*F[j]
         return Pi
 
-    def cse_rho_v(self, q):
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        return cse(self.rho_v(q), "rho_v")
-
-    def cse_F(self, q):
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        return cse(self.F(q), "F")
-
-    def cse_v(self, q):
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        return cse(self.v(q), "v")
-
-    def cse_P(self, q):
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        return cse(self.P(q), "P")
+#    def cse_rho_v(self, q):
+#        from hedge.tools.symbolic import make_common_subexpression as cse
+#        return cse(self.rho_v(q), "rho_v")
+#
+#    def cse_F(self, q):
+#        from hedge.tools.symbolic import make_common_subexpression as cse
+#        return cse(self.F(q), "F")
+#
+#    def cse_v(self, q):
+#        from hedge.tools.symbolic import make_common_subexpression as cse
+#        return cse(self.v(q), "v")
+#    
+#    def cse_v_null(self, q_null):
+#        from hedge.tools.symbolic import make_common_subexpression as cse
+#        return cse(self.v(q_null), "v_null")
+#
+#    def cse_P(self, q):
+#        from hedge.tools.symbolic import make_common_subexpression as cse
+#        return cse(self.P(q), "P")
 
     def flux_num(self, q, fluxes, bdry_tags_state_and_fluxes):
         from hedge.flux import FluxVectorPlaceholder, make_normal
         from hedge.optemplate import get_flux_operator, BoundaryPair
-
         from pytools.obj_array import join_fields
         from math import sqrt
 
@@ -548,23 +447,20 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         if self.flux_type == "central":
             pass
         elif self.flux_type == "lf":
-
             flux_strong = 0.5*penalty + flux_strong
         else:
-            raise ValueError("invalid flux type '%s'" % self.flux_type)
+            raise ValueError("Invalid flux type '%s'" % self.flux_type)
 
         flux_op = get_flux_operator(flux_strong)
         int_operand = join_fields(q,*fluxes)
 
         return (flux_op(int_operand)
                 +sum(flux_op(BoundaryPair(int_operand, join_fields(bdry_state, *bdry_fluxes), tag))
-                      for tag, bdry_state, bdry_fluxes in bdry_tags_state_and_fluxes))
+                     for tag, bdry_state, bdry_fluxes in bdry_tags_state_and_fluxes))
 
     def op_template(self):
         from hedge.optemplate import \
                 Field, \
-                BoundaryPair, \
-                get_flux_operator, \
                 make_nabla, \
                 InverseMassOperator, \
                 BoundarizeOperator
@@ -576,162 +472,133 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         dim = self.dimensions
 
         def flux(q):
+            P = self.P(q)
+            v = self.v(q)
+            v_null = Field('state_null')
+            
             if dim == 1:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[0],
-
-                            # flux F
-                            -self.v(q)[0]
+                            -P[0],  # flux rho_v
+                            -v[0]   # flux F
                             ), "x_flux")
                         ]
 
             elif dim == 2:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[0],-self.P(q)[2],
-
-                            # flux F
-                            -self.v(q)[0],0,-self.v(q)[1]
+                            -P[0],-P[2],       # flux rho_v
+                            -v[0],v_null,-v[1] # flux F
                             ), "x_flux"),
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[2],-self.P(q)[1],
-
-                            # flux F
-                            0,-self.v(q)[1],-self.v(q)[0]
+                            -P[2],-P[1],       # flux rho_v
+                            v_null,-v[1],-v[0] # flux F
                             ), "y_flux")
                         ]
             elif dim == 3:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[0],-self.P(q)[5],-self.P(q)[4],
-
-                            # flux F
-                            -self.v(q)[0],0,0,0,-self.v(q)[2],-self.v(q)[1]
+                            -P[0],-P[5],-P[4],                     # flux rho_v
+                            -v[0],v_null,v_null,v_null,-v[2],-v[1] # flux F
                             ), "x_flux"),
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[5],-self.P(q)[1],-self.P(q)[3],
-
-                            # flux F
-                            0,-self.v(q)[1],0,-self.v(q)[2],0,-self.v(q)[0]
+                            -P[5],-P[1],-P[3],                     # flux rho_v
+                            v_null,-v[1],v_null,-v[2],v_null,-v[0] # flux F
                             ), "y_flux"),
                         cse(join_fields(
-                            # flux rho_v
-                            -self.P(q)[4],-self.P(q)[3],-self.P(q)[2],
-
-                            # flux F
-                            0,0,-self.v(q)[2],-self.v(q)[1],-self.v(q)[0],0
+                            -P[4],-P[3],-P[2],                     # flux rho_v
+                            v_null,v_null,-v[2],-v[1],-v[0],v_null # flux F
                             ), "z_flux")
                         ]
             else:
-                raise ValueError("invalid dimension")
+                raise ValueError("Invalid dimension")
 
-        def bdry_flux(q_bdry, tag):
+        def bdry_flux(q_bdry, q_null, tag):
             # stress free BCs -------------------------------------------------------
-            if tag == self.stressfree_tag:
+            if tag == self.boundaryconditions_tag['stressfree']:
                 signP = 1
                 signv = -1
             # fixed BCs -------------------------------------------------------------
-            elif tag == self.fixed_tag:
+            elif tag == self.boundaryconditions_tag['fixed']:
                 signP = -1
                 signv = 1
             else:
-                raise ValueError("invalid Bdry conditions")
+                raise ValueError("Invalid boundary conditions")
+
+            P = self.P(q_bdry)
+            v = self.v(q_bdry)
+            v_null = q_null
 
             if dim == 1:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[0],
-
-                            # flux F
-                            signv*self.v(q_bdry)[0]
+                            signP*P[0], # flux rho_v
+                            signv*v[0]  # flux F
                             ), "x_bflux")
                         ]
             elif dim == 2:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[0],signP*self.P(q_bdry)[2],
-
-                            # flux F
-                            signv*self.v(q_bdry)[0],0,signv*self.v(q_bdry)[1]
+                            signP*P[0],signP*P[2],        # flux rho_v
+                            signv*v[0],v_null,signv*v[1]  # flux F
                             ), "x_bflux"),
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[2],signP*self.P(q_bdry)[1],
-
-                            # flux F
-                            0,signv*self.v(q_bdry)[1],signv*self.v(q_bdry)[0]
+                            signP*P[2],signP*P[1],        # flux rho_v
+                            v_null,signv*v[1],signv*v[0]  # flux F
                             ), "y_bflux")
                         ]
             elif dim == 3:
                 return [ # one entry for each flux direction
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[0],signP*self.P(q_bdry)[5],signP*self.P(q_bdry)[4],
-
-                            # flux F
-                            signv*self.v(q_bdry)[0],0,0,0,signv*self.v(q_bdry)[2],signv*self.v(q_bdry)[1]
+                            signP*P[0],signP*P[5],signP*P[4],                     # flux rho_v
+                            signv*v[0],v_null,v_null,v_null,signv*v[2],signv*v[1] # flux F
                             ), "x_bflux"),
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[5],signP*self.P(q_bdry)[1],signP*self.P(q_bdry)[3],
-
-                            # flux F
-                            0,signv*self.v(q_bdry)[1],0,signv*self.v(q_bdry)[2],0,signv*self.v(q_bdry)[0]
+                            signP*P[5],signP*P[1],signP*P[3],                     # flux rho_v
+                            v_null,signv*v[1],v_null,signv*v[2],v_null,signv*v[0] # flux F
                             ), "y_bflux"),
                         cse(join_fields(
-                            # flux rho_v
-                            signP*self.P(q_bdry)[4],signP*self.P(q_bdry)[3],signP*self.P(q_bdry)[2],
-
-                            # flux F
-                            0,0,signv*self.v(q_bdry)[2],signv*self.v(q_bdry)[1],signv*self.v(q_bdry)[0],0
+                            signP*P[4],signP*P[3],signP*P[2],                     # flux rho_v
+                            v_null,v_null,signv*v[2],signv*v[1],signv*v[0],v_null # flux F
                             ), "z_bflux")
                         ]
             else:
-                raise ValueError("invalid dimension")
+                raise ValueError("Invalid dimension")
 
 
-        state = make_vector_field("q", dim+self.dimF[dim])
+        q = make_vector_field('q', dim+self.dimF[dim])
 
         # fluxes ------------------------------------------------------------
-        fluxes = flux(state)
+        fluxes = flux(q)
 
         # boundary conditions ---------------------------------------------------
-        state_bc_stressfree = BoundarizeOperator(self.stressfree_tag)(state)
-        state_bc_fixed      = BoundarizeOperator(self.fixed_tag)(state)
+        state_bc_stressfree = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(q)
+        state_bc_stressfree_null = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(0)
+        state_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(q)
+        state_bc_fixed_null = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(0)
 
         all_tags_and_bcs = [
-                (self.stressfree_tag, state_bc_stressfree),
-                (self.fixed_tag, state_bc_fixed)
+                (self.boundaryconditions_tag['stressfree'], state_bc_stressfree, state_bc_stressfree_null),
+                (self.boundaryconditions_tag['fixed'], state_bc_fixed, state_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, bdry_flux(bc, tag)) for tag, bc in all_tags_and_bcs]
+        bdry_tags_state_and_fluxes = [(tag, bc, bdry_flux(bc, bc_null, tag)) for tag, bc, bc_null in all_tags_and_bcs]
 
         # entire operator -----------------------------------------------------
         from math import sin, cos, pi
         nabla = make_nabla(dim)
 
-        result = (-numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(state,fluxes,bdry_tags_state_and_fluxes)))
+        result = (-numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(q,fluxes,bdry_tags_state_and_fluxes)))
 
         if self.source is not None:
-            result[0] += Field("source_v_x")*sin(10*pi/180)
-            result[1] += Field("source_v_x")*cos(10*pi/180)
+            result[0] += Field('source_v_x')*sin(10*pi/180)
+            result[1] += Field('source_v_x')*cos(10*pi/180)
 
         return result
 
     def bind(self, discr):
         from hedge.mesh import check_bc_coverage
-        check_bc_coverage(discr.mesh, [
-            self.stressfree_tag,
-            self.fixed_tag,
-            self.open_tag])
+        check_bc_coverage(discr.mesh, self.boundaryconditions_tag.values())
 
         compiled_op_template = discr.compile(self.op_template())
 
@@ -739,7 +606,8 @@ class ElastoDynamicsOperator(HyperbolicOperator):
             extra_kwargs = {}
 
             if self.source is not None:
-                extra_kwargs["source_v_x"] = self.source.volume_interpolant(t, discr)
+                extra_kwargs['source_v_x'] = self.source.volume_interpolant(t, discr)
+            extra_kwargs['state_null'] = self.state_null.volume_interpolant(t, discr)
 
             return compiled_op_template(q=q,**extra_kwargs)
 
@@ -749,8 +617,6 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         from math import sqrt
 
         return sqrt(self.Ceq[0,0]/self.rho)
-
-
 
 
 # To be finished !!!!
@@ -775,13 +641,13 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
     def pml_local_op(self, w):
         dim = self.dimensions
 
-        from hedge.optemplate import make_vector_field
-        sigma = make_vector_field("sigma", self.dimensions)
-        alpha = make_vector_field("alpha", self.dimensions)
-        kappa = make_vector_field("kappa", self.dimensions)
+        #from hedge.optemplate import make_vector_field
+        #sigma = make_vector_field("sigma", dim)
+        #alpha = make_vector_field("alpha", dim)
+        #kappa = make_vector_field("kappa", dim)
 
 
-        rhs = numpy.zeros((2*self.dimensions**2,), dtype=object)
+        rhs = numpy.zeros((2*dim**2,), dtype=object)
 
         #for mx in range(3):
         #    my = (mx+1) % 3
@@ -804,7 +670,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
     def op_template(self, q=None):
         if q is None:
             from hedge.optemplate import make_vector_field
-            q = make_vector_field("q", dim+self.dimF[dim])
+            q = make_vector_field("q", self.dimensions+self.dimF[self.dimensions])
 
         from hedge.tools import join_fields
         return join_fields(
