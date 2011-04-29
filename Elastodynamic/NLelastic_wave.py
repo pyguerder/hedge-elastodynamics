@@ -28,11 +28,11 @@ import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
 
 
-def main(write_output=True,allow_features='mpi',
+def main(write_output=True,allow_features='mpi', dim = 2,
          stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
-         flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64, dim = 2):
+         flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64):
     from math import exp
-    from Materials import Material
+    from libraries.materials import Material
     from hedge.backends import guess_run_context
     rcon = guess_run_context(allow_features)
 
@@ -41,10 +41,22 @@ def main(write_output=True,allow_features='mpi',
     elif allow_features == 'mpi':
         dtype = numpy.float64
 
-    material = Material('Materials/calcite.dat', dtype=dtype)
-    rho0 = material.rho
-    C = material.C
-    Cnl = material.Cnl
+    output_dir = 'output'
+    import os
+    if not os.access(output_dir, os.F_OK):
+        os.makedirs(output_dir)
+
+    mesh_file = ''
+
+    material1 = Material('Materials/calcite.dat',dtype=dtype)
+    material2 = Material('Materials/calcite.dat',dtype=dtype)
+
+    materials = { 'mat1': material1,
+                  'mat2': material2 }
+
+    speed1 = (material1.C[0,0]/material1.rho)**0.5
+    speed2 = (material2.C[0,0]/material2.rho)**0.5
+    speed = max(speed1,speed2)
 
     if dim == 1:
         if rcon.is_head_rank:
@@ -54,7 +66,8 @@ def main(write_output=True,allow_features='mpi',
     elif dim == 2:
         if rcon.is_head_rank:
             from hedge.mesh.reader.gmsh import read_gmsh
-            mesh = read_gmsh('Meshes/Lamb2Dmod.msh',
+            mesh_file = 'Meshes/Lamb2DRect.msh'
+            mesh = read_gmsh(mesh_file,
                              force_dimension=2,
                              periodicity=None,
                              allow_internal_boundaries=False,
@@ -88,11 +101,22 @@ def main(write_output=True,allow_features='mpi',
             make_tdep_given, \
             TimeIntervalGivenFunction
 
-    op = NLElastoDynamicsOperator(dimensions=dim, rho=rho0, C=C, Cnl=Cnl,
-            #source=TimeIntervalGivenFunction(
-            #    TimeHarmonicGivenFunction(
-            #        make_tdep_given(source_v_x), omega=10*2*pi),
-            #    0, 2),
+    # Work out which elements belong to each material
+    material_elements = []
+    materials2 = []
+    for key in materials.keys():
+        if key in mesh_data.tag_to_elements.keys():
+            material_elements.append(set(mesh_data.tag_to_elements[key]))
+        materials2.append(materials[key])
+
+    def mat_val(x, el):
+        if len(material_elements) > 0 and el in material_elements[1]:
+            return 1
+        return 0
+
+    op = NLElastoDynamicsOperator(dimensions=dim,
+            speed=speed,
+            material = make_tdep_given(mat_val),
             source=TimeIntervalGivenFunction(
                 TimeRickerWaveletGivenFunction(
                 make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
@@ -102,6 +126,7 @@ def main(write_output=True,allow_features='mpi',
                { 'stressfree' : stfree_tag,
                  'fixed' : fix_tag,
                  'open' : op_tag },
+            materials = materials2,
             flux_type=flux_type_arg,
             )
 
@@ -112,12 +137,13 @@ def main(write_output=True,allow_features='mpi',
 
     from hedge.visualization import VtkVisualizer
     if write_output:
-        vis = VtkVisualizer(discr, rcon, "fld")
+        from os.path import join
+        vis = VtkVisualizer(discr, rcon, join(output_dir, "fld"))
 
 
     from hedge.tools import join_fields
-    fields = join_fields([discr.volume_zeros(dtype=dtype) for i in range(discr.dimensions)],
-            [discr.volume_zeros(dtype=dtype) for i in range(discr.dimensions**2)])
+    fields = join_fields([discr.volume_zeros(dtype=dtype) for _ in range(discr.dimensions)],
+            [discr.volume_zeros(dtype=dtype) for _ in range(discr.dimensions**2)])
 
     #from hedge.discretization import Filter, ExponentialFilterResponseFunction
     #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=4))
@@ -129,7 +155,7 @@ def main(write_output=True,allow_features='mpi',
             add_run_info
 
     if write_output:
-        log_file_name = "elastic_wave.dat"
+        log_file_name = join(output_dir, "elastic_wave.dat")
     else:
         log_file_name = None
 
@@ -163,7 +189,7 @@ def main(write_output=True,allow_features='mpi',
 
         for step, t, dt in step_it:
             if step % 50 == 0 and write_output:
-                visf = vis.make_file("fld-%04d" % step)
+                visf = vis.make_file(join(output_dir, "fld-%04d" % step))
                 print "%d step" % step
 
                 vis.add_data(visf,

@@ -15,3 +15,5 @@ find . -maxdepth 1 \
   -o -name '*.visit' \
   -o -name '*.png' \)\
   -print0 | xargs -0 -r rm
+
+rm -rf output/*

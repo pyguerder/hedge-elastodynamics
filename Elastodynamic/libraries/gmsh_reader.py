@@ -36,14 +36,18 @@ class GmshReader:
 
         self.tag_name_map = {}
         self.points_map = {}
+        self.surfaces_map = {}
         self.nodes_map = {}
 
         self.Read_PhysicalNames()
-        self.Read_Points()
+        self.Read_Elements()
         self.Read_Nodes()
 
         self.pointReceivers = self.Get_Points('PointReceiver')
         self.pointSources = self.Get_Points('PointSource')
+        self.materials = \
+            { 'mat1' : self.Get_Surfaces('mat1'), 
+              'mat2' : self.Get_Surfaces('mat2') }
 
         # close file
         self.file.close()
@@ -81,7 +85,7 @@ class GmshReader:
         if name_count+1 != name_idx:
             print 'Unexpected number of physical names found'
 
-    def Read_Points(self):
+    def Read_Elements(self):
         self.file.seek(0, 0)
         myline = self.file.readline()
         while ( myline != "" and myline != '$Elements\n' ):
@@ -121,6 +125,26 @@ class GmshReader:
                 elif number_of_tags == 0:
                     node_number_list = int(values[3])
                     self.points_map[number, None] = node_number_list
+            elif type == 2:
+                number_of_tags = int(values[2])
+                if number_of_tags == 3:
+                    physical_surface = int(values[3])
+                    # geometrical_entity = int(values[4])
+                    # mesh_partition = int(values[5])
+                    node_number_list = int(values[6])
+                    self.surfaces_map[number, physical_surface] = node_number_list
+                elif number_of_tags == 2:
+                    physical_surface = int(values[3])
+                    # geometrical_entity = int(values[4])
+                    node_number_list = int(values[5])
+                    self.surfaces_map[number, physical_surface] = node_number_list
+                elif number_of_tags == 1:
+                    physical_surface = int(values[3])
+                    node_number_list = int(values[4])
+                    self.surfaces_map[number, physical_surface] = node_number_list
+                elif number_of_tags == 0:
+                    physical_surface = int(values[3])
+                    self.surfaces_map[number, None] = node_number_list
             name_idx +=1
 
         if name_count+1 != name_idx:
@@ -166,19 +190,28 @@ class GmshReader:
 
     def Get_TagId(self, tag_name):
         if tag_name in self.tag_name_map.values():
-            tag_id = [k1 for (k1, k2), v in self.tag_name_map.iteritems() if v == tag_name][0]
+            tag_id = [k1 for (k1, _), v in self.tag_name_map.iteritems() if v == tag_name][0]
             return tag_id
         return None
 
     def Get_Points(self, tag_name):
         tag_id = self.Get_TagId(tag_name)
         if tag_id:
-            elements = [v for (k1, k2), v in self.points_map.iteritems() if k2 == tag_id]
+            elements = [v for (_, k2), v in self.points_map.iteritems() if k2 == tag_id]
             nodes = [v for k, v in self.nodes_map.iteritems() if k in elements]
             return nodes
         else:
-            print "No PointReceiver in this file"
+            print "No " + tag_name + " in this file"
+    
+    def Get_Surfaces(self, tag_name):
+        tag_id = self.Get_TagId(tag_name)
+        if tag_id:
+            elements = [k1 for (k1, k2), _ in self.surfaces_map.iteritems() if k2 == tag_id]
+            return elements
+        else:
+            print "No " + tag_name + " in this file"
 
-#myGmsh = GmshReader('Meshes/Lamb2D.msh', 3)
+#myGmsh = GmshReader('../Meshes/Lamb2DRect.msh', 2)
 #print 'PointReceiver:', myGmsh.pointReceivers
 #print 'PointSource:', myGmsh.pointSources
+#print 'Materials:', myGmsh.materials
