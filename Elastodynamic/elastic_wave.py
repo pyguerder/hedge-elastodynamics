@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Function for launching the linear Elastodynamics operator."""
+"""Function for launching the linear and nonlinear Elastodynamics operators."""
 
 from __future__ import division
 
@@ -28,7 +28,7 @@ import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
 
 
-def main(write_output=True, allow_features='mpi', dim = 2,
+def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
          stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
          flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64):
     from math import exp
@@ -51,6 +51,11 @@ def main(write_output=True, allow_features='mpi', dim = 2,
     material1 = Material('Materials/aluminium.dat',dtype=dtype)
     material2 = Material('Materials/calcite.dat',dtype=dtype)
 
+    # Only calcite.dat has a Cnl for the moment!
+    if linear == False:
+            material1 = Material('Materials/calcite.dat',dtype=dtype)
+            material2 = Material('Materials/calcite.dat',dtype=dtype)
+
     materials = { 'mat1': material1,
                   'mat2': material2 }
 
@@ -65,7 +70,7 @@ def main(write_output=True, allow_features='mpi', dim = 2,
     elif dim == 2:
         if rcon.is_head_rank:
             from hedge.mesh.reader.gmsh import read_gmsh
-            mesh_file = 'Meshes/Lamb2DRect.msh'
+            mesh_file = 'Meshes/Lamb2Dmod.msh'
             mesh = read_gmsh(mesh_file,
                              force_dimension=2,
                              periodicity=None,
@@ -76,7 +81,7 @@ def main(write_output=True, allow_features='mpi', dim = 2,
             from hedge.mesh.generator import make_ball_mesh
             mesh = make_ball_mesh(max_volume=0.0008)
     else:
-        raise RuntimeError, "bad number of dimensions"
+        raise RuntimeError, "Bad number of dimensions"
 
 
     if rcon.is_head_rank:
@@ -92,39 +97,57 @@ def main(write_output=True, allow_features='mpi', dim = 2,
             x = x - numpy.array([1720.0,-2303.28,13.2])
         return exp(-numpy.dot(x, x)*0.01)
 
-    # from hedge.models.elastodynamic import ElastoDynamicsOperator
-    from elastodynamic import ElastoDynamicsOperator
     from libraries.functions import TimeRickerWaveletGivenFunction
     from hedge.data import \
             make_tdep_given, \
             TimeIntervalGivenFunction
 
+    discr_init = rcon.make_discretization(mesh_data, order=4)
+
     # Work out which elements belong to each material
     material_elements = []
     materials2 = []
     for key in materials.keys():
-        if key in mesh_data.tag_to_elements.keys():
-            material_elements.append(set(mesh_data.tag_to_elements[key]))
+        if key in discr_init.mesh.tag_to_elements.keys():
+            material_elements.append(set(discr_init.mesh.tag_to_elements[key]))
         materials2.append(materials[key])
 
     def mat_val(x, el):
         if len(material_elements) > 0 and el in material_elements[1]:
-            return 0
-        return 1
+            return 1
+        return 0
 
-    op = ElastoDynamicsOperator(dimensions=dim,
-            speed=speed,
-            material = make_tdep_given(mat_val),
-            source=TimeIntervalGivenFunction(
-                TimeRickerWaveletGivenFunction(
-                make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
-                0, 2),
-            boundaryconditions_tag = \
-                    { 'stressfree' : stfree_tag,
-                      'fixed' : fix_tag,
-                      'open' : op_tag },
-            materials = materials2,
-            flux_type=flux_type_arg)
+    if linear:
+        from elastodynamic import ElastoDynamicsOperator
+        op = ElastoDynamicsOperator(dimensions=dim,
+                speed=speed,
+                material = make_tdep_given(mat_val),
+                source=TimeIntervalGivenFunction(
+                    TimeRickerWaveletGivenFunction(
+                    make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
+                    0, 2),
+                boundaryconditions_tag = \
+                        { 'stressfree' : stfree_tag,
+                          'fixed' : fix_tag,
+                          'open' : op_tag },
+                materials = materials2,
+                flux_type=flux_type_arg)
+    else:
+        from elastodynamic import NLElastoDynamicsOperator
+        op = NLElastoDynamicsOperator(dimensions=dim,
+                speed=speed,
+                material = make_tdep_given(mat_val),
+                source=TimeIntervalGivenFunction(
+                    TimeRickerWaveletGivenFunction(
+                    make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
+                    0, 2),
+                nonlinearity_type="classical",
+                boundaryconditions_tag = \
+                   { 'stressfree' : stfree_tag,
+                     'fixed' : fix_tag,
+                     'open' : op_tag },
+                materials = materials2,
+                flux_type=flux_type_arg)
 
     discr = rcon.make_discretization(mesh_data, order=4, debug=debug,tune_for=op.op_template())
 
