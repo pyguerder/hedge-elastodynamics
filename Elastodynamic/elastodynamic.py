@@ -34,14 +34,14 @@ from pymbolic.primitives import IfPositive
 class ElastoDynamicsOperator(HyperbolicOperator):
     """An nD linear Elastodynamics operator.
 
-    dq/dt = -dF/dx  - dG/dy - dH/dz
+    dq/dt + dF/dx + dG/dy + dH/dz = 0
 
     where e.g. in 3D
 
     q = (rho_v_1, rho_v_2, rho_v_3, F_11, F_22, F_33, 2*F_23, 2*F_13, 2*F_12)
-    F = (-P_11, -P_12, -P_13, -v_1, 0, 0, 0, -v_3, -v_2)
-    G = (-P_12, -P_22, -P_23, 0, -v_2, 0, -v_3, 0, -v_1)
-    H = (-P_13, -P_23, -P_33, 0, 0, -v_3, -v_2, -v_1, 0)
+    F = (P_11, P_12, P_13, v_1, 0, 0, 0, v_3, v_2)
+    G = (P_12, P_22, P_23, 0, v_2, 0, v_3, 0, v_1)
+    H = (P_13, P_23, P_33, 0, 0, v_3, v_2, v_1, 0)
 
     For the linear case with included attenuation
     the stress-strain relation is given by
@@ -144,7 +144,8 @@ class ElastoDynamicsOperator(HyperbolicOperator):
             raise ValueError("Invalid flux type '%s'" % self.flux_type)
 
         flux_op = get_flux_operator(flux_strong)
-        int_operand = join_fields(wave_speed,q,*fluxes)
+        fluxes2 = [-fluxes[i] for i in range(len(fluxes))] # We need the opposite of fluxes
+        int_operand = join_fields(wave_speed,q,*fluxes2)
 
         return (flux_op(int_operand)
                 +sum(flux_op(BoundaryPair(int_operand, join_fields(0,bdry_state, *bdry_fluxes), tag))
@@ -165,35 +166,35 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         if dim == 1:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        -P[0],  # flux rho_v
-                        -v[0]   # flux F
+                        P[0],  # flux rho_v
+                        v[0]   # flux F
                         ), "x_flux")
                     ]
 
         elif dim == 2:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        -P[0],-P[2],       # flux rho_v
-                        -v[0],v_null,-v[1] # flux F
+                        P[0],P[2],       # flux rho_v
+                        v[0],v_null,v[1] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        -P[2],-P[1],       # flux rho_v
-                        v_null,-v[1],-v[0] # flux F
+                        P[2],P[1],       # flux rho_v
+                        v_null,v[1],v[0] # flux F
                         ), "y_flux")
                     ]
         elif dim == 3:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        -P[0],-P[5],-P[4],                     # flux rho_v
-                        -v[0],v_null,v_null,v_null,-v[2],-v[1] # flux F
+                        P[0],P[5],P[4],                     # flux rho_v
+                        v[0],v_null,v_null,v_null,v[2],v[1] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        -P[5],-P[1],-P[3],                     # flux rho_v
-                        v_null,-v[1],v_null,-v[2],v_null,-v[0] # flux F
+                        P[5],P[1],P[3],                     # flux rho_v
+                        v_null,v[1],v_null,v[2],v_null,v[0] # flux F
                         ), "y_flux"),
                     cse(join_fields(
-                        -P[4],-P[3],-P[2],                     # flux rho_v
-                        v_null,v_null,-v[2],-v[1],-v[0],v_null # flux F
+                        P[4],P[3],P[2],                     # flux rho_v
+                        v_null,v_null,v[2],v[1],v[0],v_null # flux F
                         ), "z_flux")
                     ]
         else:
@@ -216,14 +217,9 @@ class ElastoDynamicsOperator(HyperbolicOperator):
 
         dim = self.dimensions
 
-        print q_bdry
-
         P = self.P(q_bdry)
         v = self.v(q_bdry)
         v_null = q_null
-        
-        print P
-        print v
 
         if dim == 1:
             return [ # one entry for each flux direction
@@ -307,7 +303,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         from math import sin, cos, pi
         nabla = make_nabla(dim)
 
-        result = (-numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
+        result = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
 
         if self.source is not None:
             result[0] += Field('source_v_x')*sin(10*pi/180)
@@ -341,14 +337,14 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
 
     see YiFeng LI PhD p. 41
 
-    dq/dt = -dF/dx  - dG/dy - dH/dz
+    dq/dt + dF/dx + dG/dy + dH/dz = 0
 
     where e.g. in 3D
 
     q = (rho_v_1, rho_v_2, rho_v_3, F_11, F_22, F_33, F_23, F_13, F_12, F_32, F_31, F_21)
-    F = (-P_11, -P_21, -P_31, -v_1, 0, 0, 0, 0, 0, 0, -v_3, -v_2)
-    G = (-P_12, -P_22, -P_32, 0, -v_2, 0, 0, 0, -v_1, -v_3, 0, 0)
-    H = (-P_13, -P_23, -P_33, 0, 0, -v_3, -v_2, -v_1, 0, 0, 0, 0)
+    F = (P_11, P_21, P_31, v_1, 0, 0, 0, 0, 0, 0, v_3, v_2)
+    G = (P_12, P_22, P_32, 0, v_2, 0, 0, 0, v_1, v_3, 0, 0)
+    H = (P_13, P_23, P_33, 0, 0, v_3, v_2, v_1, 0, 0, 0, 0)
 
     For the linear case with included attenuation
     the stress-strain relation is given by
@@ -446,13 +442,19 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             F = self.F(q)
             for i in range(self.dimF[dim]):
                 for j in range(self.dimF[dim]):
-                    Ceqij = IfPositive(mat, self.materials[1].Ceq[i,j], self.materials[0].Ceq[i,j])
+                    C[i,j] = IfPositive(mat, self.materials[1].Ceq[i,j], self.materials[0].Ceq[i,j])
                     for k in range(self.dimF[dim]):
-                        C[i,j] += Ceqij + 0.5 * M[i, j, k] * F[k]
+                        C[i,j] += 0.5 * M[i, j, k] * F[k]
             return C
         else:
-            Ceq = IfPositive(mat, self.materials[1].Ceq, self.materials[0].Ceq)
-            return Ceq
+            C = numpy.zeros((self.dimF[dim],self.dimF[dim]), dtype=object)
+            F = self.F(q)
+            for i in range(self.dimF[dim]):
+                for j in range(self.dimF[dim]):
+                    Ceqij = IfPositive(mat, self.materials[1].Ceq[i,j], self.materials[0].Ceq[i,j])
+                    for k in range(self.dimF[dim]):
+                        C[i,j] = Ceqij
+            return C
 
     def flux(self, w):
         from hedge.optemplate import Field
@@ -468,35 +470,35 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         if dim == 1:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        -P[0],  # flux rho_v
-                        -v[0]   # flux F
+                        P[0],  # flux rho_v
+                        v[0]   # flux F
                         ), "x_flux")
                     ]
 
         elif dim == 2:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        -P[0],-P[3],              # flux rho_v
-                        -v[0],v_null,v_null,-v[1] # flux F
+                        P[0],P[3],              # flux rho_v
+                        v[0],v_null,v_null,v[1] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        -P[2],-P[1],              # flux rho_v
-                        v_null,-v[1],-v[0],v_null # flux F
+                        P[2],P[1],              # flux rho_v
+                        v_null,v[1],v[0],v_null # flux F
                         ), "y_flux")
                     ]
         elif dim == 3:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        -P[0],-P[8],-P[7],                                          # flux rho_v
-                        -v[0],v_null,v_null,v_null,v_null,v_null,v_null,-v[2],-v[1] # flux F
+                        P[0],P[8],P[7],                                          # flux rho_v
+                        v[0],v_null,v_null,v_null,v_null,v_null,v_null,v[2],v[1] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        -P[5],-P[1],-P[6],                                          # flux rho_v
-                        v_null,-v[1],v_null,v_null,v_null,-v[0],-v[2],v_null,v_null # flux F
+                        P[5],P[1],P[6],                                          # flux rho_v
+                        v_null,v[1],v_null,v_null,v_null,v[0],v[2],v_null,v_null # flux F
                         ), "y_flux"),
                     cse(join_fields(
-                        -P[4],-P[3],-P[2],                                          # flux rho_v
-                        v_null,v_null,-v[2],-v[1],-v[0],v_null,v_null,v_null,v_null # flux F
+                        P[4],P[3],P[2],                                          # flux rho_v
+                        v_null,v_null,v[2],v[1],v[0],v_null,v_null,v_null,v_null # flux F
                         ), "z_flux")
                     ]
         else:
@@ -599,35 +601,35 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         if dim == 1:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        (-P[0]-F2[0])/k[0],  # flux rho_v
-                        (-v[0]-F2[1])/k[0]   # flux F
+                        (P[0]+F2[0])/k[0],  # flux rho_v
+                        (v[0]+F2[1])/k[0]   # flux F
                         ), "x_flux")
                     ]
 
         elif dim == 2:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        (-P[0]-F2[0])/k[0],(-P[2]-F2[1])/k[0],       # flux rho_v
-                        (-v[0]-F2[2])/k[0],v_null,v_null,(-v[1]-F2[3])/k[0] # flux F
+                        (P[0]+F2[0])/k[0],(P[2]+F2[1])/k[0],       # flux rho_v
+                        (v[0]+F2[2])/k[0],v_null,v_null,(v[1]+F2[3])/k[0] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        (-P[2]-F2[4])/k[1],(-P[1]-F2[5])/k[1],       # flux rho_v
-                        v_null,(-v[1]-F2[6])/k[1],(-v[0]-F2[7])/k[1],v_null # flux F
+                        (P[2]+F2[4])/k[1],(P[1]+F2[5])/k[1],       # flux rho_v
+                        v_null,(v[1]+F2[6])/k[1],(v[0]+F2[7])/k[1],v_null # flux F
                         ), "y_flux")
                     ]
         elif dim == 3:
             return [ # one entry for each flux direction
                     cse(join_fields(
-                        (-P[0]-F2[0])/k[0],(-P[5]-F2[1])/k[0],(-P[4]-F2[2])/k[0],                     # flux rho_v
-                        (-v[0]-F2[3])/k[0],v_null,v_null,v_null,(-v[2]-F2[4])/k[0],(-v[1]-F2[5])/k[0] # flux F
+                        (P[0]+F2[0])/k[0],(P[5]+F2[1])/k[0],(P[4]+F2[2])/k[0],                     # flux rho_v
+                        (v[0]+F2[3])/k[0],v_null,v_null,v_null,(v[2]+F2[4])/k[0],(v[1]+F2[5])/k[0] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        (-P[5]-F2[6])/k[1],(-P[1]-F2[7])/k[1],(-P[3]-F2[8])/k[1],                     # flux rho_v
-                        v_null,(-v[1]-F2[9])/k[1],v_null,(-v[2]-F2[10])/k[1],v_null,(-v[0]-F2[11])/k[1] # flux F
+                        (P[5]+F2[6])/k[1],(P[1]+F2[7])/k[1],(P[3]+F2[8])/k[1],                     # flux rho_v
+                        v_null,(v[1]+F2[9])/k[1],v_null,(v[2]+F2[10])/k[1],v_null,(v[0]+F2[11])/k[1] # flux F
                         ), "y_flux"),
                     cse(join_fields(
-                        (-P[4]-F2[12])/k[2],(-P[3]-F2[13])/k[2],(-P[2]-F2[14])/k[2],                     # flux rho_v
-                        v_null,v_null,(-v[2]-F2[15])/k[2],(-v[1]-F2[16])/k[2],(-v[0]-F2[17])/k[2],v_null # flux F
+                        (P[4]+F2[12])/k[2],(P[3]+F2[13])/k[2],(P[2]+F2[14])/k[2],                     # flux rho_v
+                        v_null,v_null,(v[2]+F2[15])/k[2],(v[1]+F2[16])/k[2],(v[0]+F2[17])/k[2],v_null # flux F
                         ), "z_flux")
                     ]
         else:
@@ -747,7 +749,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         from math import sin, cos, pi
         nabla = make_nabla(dim)
 
-        res_q = (-numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
+        res_q = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
 
         if self.source is not None:
             res_q[0] += Field('source_v_x')*sin(10*pi/180)
@@ -759,21 +761,21 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         P = self.P(w)
         v = self.v(w)
         if dim == 1:
-            F = [-P[0],-v[0]]
+            F = [P[0],v[0]]
         elif dim == 2:
-            F = [-P[0],-P[2],-v[0],-v[1],
-                 -P[2],-P[1],-v[1],-v[0]]
+            F = [P[0],P[2],v[0],v[1],
+                 P[2],P[1],v[1],v[0]]
         elif dim == 3:
-            F = [-P[0],-P[5],-P[4],-v[0],-v[2],-v[1],
-                 -P[5],-P[1],-P[3],-v[1],-v[2],-v[0],
-                 -P[4],-P[3],-P[2],-v[2],-v[1],-v[0]]
+            F = [P[0],P[5],P[4],v[0],v[2],v[1],
+                 P[5],P[1],P[3],v[1],v[2],v[0],
+                 P[4],P[3],P[2],v[2],v[1],v[0]]
         else:
             raise ValueError("Invalid dimension")
 
         res_f2 = numpy.zeros((dim*dim*2), dtype=object)
         for i in range(dim):
             for j in range(dim*2):
-                res_f2[i*dim*2+j] = (-1)*F2[i*dim*2+j]*alpha[i]-sigma[i]/kappa[i]*(F2[i*dim*2+j]-F[i*dim*2+j])
+                res_f2[i*dim*2+j] = (-1)*F2[i*dim*2+j]*alpha[i]-sigma[i]/kappa[i]*(F2[i*dim*2+j]+F[i*dim*2+j])
 
         return join_fields(res_q, res_f2)
 
