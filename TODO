@@ -8,7 +8,6 @@ TODO:
 * Faire tourner le programme sur des cas physiques connus
 
 ; Ajouts
-* Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
-* Introduire les zones absorbantes (NPML ; v. exemple électromagnétique et comparer)
-* Introduire les pertes thermovisqueuses (cf. tools_second order)
 * Introduire des conditions de périodicité (travailler sur une cellule et extrapoler à un système périodique infini)
+* Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
+* Introduire les pertes thermovisqueuses (cf. tools_second order)

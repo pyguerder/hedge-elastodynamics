@@ -30,7 +30,8 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 
 def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
          stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
-         flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64):
+         flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64,
+         max_steps = None, output_dir = 'output', pml = True):
     from math import exp
     from libraries.materials import Material
     from hedge.backends import guess_run_context
@@ -41,7 +42,6 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     elif allow_features == 'mpi':
         dtype = numpy.float64
 
-    output_dir = 'output'
     import os
     if not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
@@ -70,7 +70,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     elif dim == 2:
         if rcon.is_head_rank:
             from hedge.mesh.reader.gmsh import read_gmsh
-            mesh_file = 'Meshes/Lamb2Dmod.msh'
+            mesh_file = 'Meshes/Square.msh'
             mesh = read_gmsh(mesh_file,
                              force_dimension=2,
                              periodicity=None,
@@ -92,7 +92,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     def source_v_x(x, el):
         if dim == 2:
-            x = x - numpy.array([1720.0,-2303.28])
+            x = x - numpy.array([0.0,0.0])
         elif dim == 3:
             x = x - numpy.array([1720.0,-2303.28,13.2])
         return exp(-numpy.dot(x, x)*0.01)
@@ -118,20 +118,36 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         return 0
 
     if linear:
-        from elastodynamic import ElastoDynamicsOperator
-        op = ElastoDynamicsOperator(dimensions=dim,
-                speed=speed,
-                material = make_tdep_given(mat_val),
-                source=TimeIntervalGivenFunction(
-                    TimeRickerWaveletGivenFunction(
-                    make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
-                    0, 2),
-                boundaryconditions_tag = \
-                        { 'stressfree' : stfree_tag,
-                          'fixed' : fix_tag,
-                          'open' : op_tag },
-                materials = materials2,
-                flux_type=flux_type_arg)
+        if pml:
+            from elastodynamic import NPMLElastoDynamicsOperator
+            op = NPMLElastoDynamicsOperator(dimensions=dim,
+                    speed=speed,
+                    material = make_tdep_given(mat_val),
+                    source=TimeIntervalGivenFunction(
+                        TimeRickerWaveletGivenFunction(
+                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
+                        0, 2),
+                    boundaryconditions_tag = \
+                            { 'stressfree' : stfree_tag,
+                              'fixed' : fix_tag,
+                              'open' : op_tag },
+                    materials = materials2,
+                    flux_type=flux_type_arg)
+        else:
+            from elastodynamic import ElastoDynamicsOperator
+            op = ElastoDynamicsOperator(dimensions=dim,
+                    speed=speed,
+                    material = make_tdep_given(mat_val),
+                    source=TimeIntervalGivenFunction(
+                        TimeRickerWaveletGivenFunction(
+                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
+                        0, 2),
+                    boundaryconditions_tag = \
+                            { 'stressfree' : stfree_tag,
+                              'fixed' : fix_tag,
+                              'open' : op_tag },
+                    materials = materials2,
+                    flux_type=flux_type_arg)
     else:
         from elastodynamic import NLElastoDynamicsOperator
         op = NLElastoDynamicsOperator(dimensions=dim,
@@ -160,8 +176,14 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         vis = VtkVisualizer(discr, rcon, join(output_dir, "fld"))
 
     from hedge.tools import join_fields
-    fields = join_fields([discr.volume_zeros(dtype=dtype) for _ in range(discr.dimensions)],
-            [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[discr.dimensions])])
+    dim = discr.dimensions
+    if pml:
+        fields = join_fields([discr.volume_zeros(dtype=dtype) for _ in range(dim)],
+                             [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])],
+                             [discr.volume_zeros(dtype=dtype) for _ in range(dim*dim*2)])
+    else:
+        fields = join_fields([discr.volume_zeros(dtype=dtype) for _ in range(dim)],
+                             [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])])
 
     #from hedge.discretization import Filter, ExponentialFilterResponseFunction
     #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=4))
@@ -196,8 +218,15 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     logmgr.add_watches(["step.max", "t_sim.max", "l2_u", "t_step.max"])
 
     # timestep loop -----------------------------------------------------------
-    rhs = op.bind(discr)
+    if pml:
+        pml_widths = [400, 400, 0, 400, 400, 0]
+        coefficients = op.coefficients_from_width(discr, widths=pml_widths, material=material1)
+        rhs = op.bind(discr, coefficients)
+    else:
+        rhs = op.bind(discr)
+    
     t=0.0
+    max_txt = ''
     try:
         from hedge.timestep import times_and_steps
 
@@ -206,9 +235,13 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                                   max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
 
         for step, t, dt in step_it:
+            if max_steps > 0:
+                max_txt = ' on ' + format(max_steps)
+                if step > max_steps:
+                    break
             if step % 50 == 0 and write_output:
                 visf = vis.make_file(join(output_dir, "fld-%04d" % step))
-                print "%d step" % step
+                print 'Step ' + format(step) + max_txt
 
                 vis.add_data(visf,
                         [
