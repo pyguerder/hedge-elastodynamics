@@ -31,7 +31,7 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
          stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
          flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64,
-         max_steps = None, output_dir = 'output', pml = True):
+         max_steps = None, output_dir = 'output', pml = False):
     from math import exp
     from libraries.materials import Material
     from hedge.backends import guess_run_context
@@ -68,12 +68,13 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             from hedge.mesh.generator import make_uniform_1d_mesh
             mesh = make_uniform_1d_mesh(-10, 10, 500)
     elif dim == 2:
+        periodicity= [("minus_x","plus_x"), None]
         if rcon.is_head_rank:
             from hedge.mesh.reader.gmsh import read_gmsh
-            mesh_file = 'Meshes/Square.msh'
+            mesh_file = 'Meshes/PeriodicSquare.msh'
             mesh = read_gmsh(mesh_file,
                              force_dimension=2,
-                             periodicity=None,
+                             periodicity=periodicity,
                              allow_internal_boundaries=False,
                              tag_mapper=lambda tag:tag)
     elif dim == 3:
@@ -92,7 +93,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     def source_v_x(x, el):
         if dim == 2:
-            x = x - numpy.array([0.0,0.0])
+            x = x - numpy.array([1000.0,0.0])
         elif dim == 3:
             x = x - numpy.array([1720.0,-2303.28,13.2])
         return exp(-numpy.dot(x, x)*0.01)
@@ -239,7 +240,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                 max_txt = ' on ' + format(max_steps)
                 if step > max_steps:
                     break
-            if step % 50 == 0 and write_output:
+            if step % 20 == 0 and write_output:
                 visf = vis.make_file(join(output_dir, "fld-%04d" % step))
                 print 'Step ' + format(step) + max_txt
 
