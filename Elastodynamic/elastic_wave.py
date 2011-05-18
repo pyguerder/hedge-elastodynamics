@@ -26,7 +26,7 @@ along with this program.  If not, see U{http://www.gnu.org/licenses/}.
 
 import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
-
+from hedge.mesh.reader.gmsh import read_gmsh
 
 def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
          stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
@@ -68,9 +68,8 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             from hedge.mesh.generator import make_uniform_1d_mesh
             mesh = make_uniform_1d_mesh(-10, 10, 500)
     elif dim == 2:
-        periodicity= [("minus_x","plus_x"), None]
+        periodicity= [None, None]
         if rcon.is_head_rank:
-            from hedge.mesh.reader.gmsh import read_gmsh
             mesh_file = 'Meshes/PeriodicSquare.msh'
             mesh = read_gmsh(mesh_file,
                              force_dimension=2,
@@ -78,9 +77,14 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                              allow_internal_boundaries=False,
                              tag_mapper=lambda tag:tag)
     elif dim == 3:
+        periodicity= [None, None, None]
         if rcon.is_head_rank:
-            from hedge.mesh.generator import make_ball_mesh
-            mesh = make_ball_mesh(max_volume=0.0008)
+            mesh_file = 'Meshes/PeriodicCube.msh'
+            mesh = read_gmsh(mesh_file,
+                             force_dimension=3,
+                             periodicity=periodicity,
+                             allow_internal_boundaries=False,
+                             tag_mapper=lambda tag:tag)
     else:
         raise RuntimeError, "Bad number of dimensions"
 
@@ -93,9 +97,9 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     def source_v_x(x, el):
         if dim == 2:
-            x = x - numpy.array([1000.0,0.0])
+            x = x - numpy.array([0.0,0.0])
         elif dim == 3:
-            x = x - numpy.array([1720.0,-2303.28,13.2])
+            x = x - numpy.array([0.0,0.0,0.0])
         return exp(-numpy.dot(x, x)*0.01)
 
     from libraries.functions import TimeRickerWaveletGivenFunction
@@ -150,21 +154,39 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                     materials = materials2,
                     flux_type=flux_type_arg)
     else:
-        from elastodynamic import NLElastoDynamicsOperator
-        op = NLElastoDynamicsOperator(dimensions=dim,
-                speed=speed,
-                material = make_tdep_given(mat_val),
-                source=TimeIntervalGivenFunction(
-                    TimeRickerWaveletGivenFunction(
-                    make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
-                    0, 2),
-                nonlinearity_type="classical",
-                boundaryconditions_tag = \
-                   { 'stressfree' : stfree_tag,
-                     'fixed' : fix_tag,
-                     'open' : op_tag },
-                materials = materials2,
-                flux_type=flux_type_arg)
+        if pml:
+            from elastodynamic import NLNPMLElastoDynamicsOperator
+            op = NLNPMLElastoDynamicsOperator(dimensions=dim,
+                    speed=speed,
+                    material = make_tdep_given(mat_val),
+                    source=TimeIntervalGivenFunction(
+                        TimeRickerWaveletGivenFunction(
+                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
+                        0, 2),
+                    nonlinearity_type="classical",
+                    boundaryconditions_tag = \
+                       { 'stressfree' : stfree_tag,
+                         'fixed' : fix_tag,
+                         'open' : op_tag },
+                    materials = materials2,
+                    flux_type=flux_type_arg)
+        else:
+            from elastodynamic import NLElastoDynamicsOperator
+            op = NLElastoDynamicsOperator(dimensions=dim,
+                    speed=speed,
+                    material = make_tdep_given(mat_val),
+                    source=TimeIntervalGivenFunction(
+                        TimeRickerWaveletGivenFunction(
+                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
+                        0, 2),
+                    nonlinearity_type="classical",
+                    boundaryconditions_tag = \
+                       { 'stressfree' : stfree_tag,
+                         'fixed' : fix_tag,
+                         'open' : op_tag },
+                    materials = materials2,
+                    flux_type=flux_type_arg)
+
 
     discr = rcon.make_discretization(mesh_data, order=4, debug=debug,tune_for=op.op_template())
 

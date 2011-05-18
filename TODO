@@ -8,6 +8,5 @@ TODO:
 * Faire tourner le programme sur des cas physiques connus
 
 ; Ajouts
-* Introduire les NPML en non linéaire
 * Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
 * Introduire les pertes thermovisqueuses (cf. tools_second order)
