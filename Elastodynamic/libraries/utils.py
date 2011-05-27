@@ -66,7 +66,7 @@ class Utils:
         else:
             raise RuntimeError, "Bad number of dimensions"
 
-        Ceq = numpy.zeros((dim**2, dim**2))
+        Ceq = numpy.zeros((dim**2, dim**2), dtype=C.dtype)
         for i in range(dim**2):
             for j in range(dim**2):
                 Ceq[i,j] = C[conv[i]-1,conv[j]-1]

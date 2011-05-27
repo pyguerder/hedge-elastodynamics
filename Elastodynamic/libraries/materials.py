@@ -122,7 +122,7 @@ class Material:
                 elements = myline.split()
                 for j in range(i, 6):
                     C[i, j] = float(elements[j])
-            C = C + triu(C,1).T
+            C = C + triu(C,1).T.astype(self.dtype)
             
             # Check if the elastic type is orthotropic
             temp = True

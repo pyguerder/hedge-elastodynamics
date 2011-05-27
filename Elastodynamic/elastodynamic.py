@@ -945,10 +945,6 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         #self.add_decay = kwargs.pop("add_decay", True)
         NLElastoDynamicsOperator.__init__(self, *args, **kwargs)
 
-    def F2(self, w):
-        dim = self.dimensions
-        return w[dim+self.dimF[dim]+2:dim+self.dimF[dim]+2+dim*dim*2]
-
     def flux(self, w, k):
         from hedge.optemplate import Field
         from hedge.tools.symbolic import make_common_subexpression as cse
@@ -1085,27 +1081,3 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
                 res_f2[i*dim*2+j] = (-1)*F2[i*dim*2+j]*alpha[i]-sigma[i]/kappa[i]*(F2[i*dim*2+j]+F[i*dim*2+j])
 
         return join_fields(res_q, res_f2)
-
-    def bind(self, discr, coefs):
-        from hedge.mesh import check_bc_coverage
-        check_bc_coverage(discr.mesh, self.boundaryconditions_tag.values())
-
-        compiled_op_template = discr.compile(self.op_template())
-
-        def rhs(t, q):
-            extra_kwargs = {}
-
-            if self.source is not None:
-                extra_kwargs['source_v_x'] = self.source.volume_interpolant(t, discr)
-            extra_kwargs['state_null'] = self.state_null.volume_interpolant(t, discr)
-
-            dim = self.dimensions            
-            return compiled_op_template(q=q[0:dim+self.dimF[dim]],
-                                        f2=q[dim+self.dimF[dim]:dim+self.dimF[dim]+dim*dim*2],
-                                        material=self.material.volume_interpolant(t, discr),
-                                        sigma=coefs.sigma,
-                                        alpha=coefs.alpha,
-                                        kappa=coefs.kappa,
-                                        **extra_kwargs)
-
-        return rhs

@@ -29,13 +29,14 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 from hedge.mesh.reader.gmsh import read_gmsh
 
 def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
-         stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
+         stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE, order = 4,
          flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64,
          max_steps = None, output_dir = 'output', pml = False):
     from math import exp
     from libraries.materials import Material
     from hedge.backends import guess_run_context
     rcon = guess_run_context(allow_features)
+    rcon_init = guess_run_context(allow_features)
 
     if allow_features == 'cuda':
         dtype = numpy.float32
@@ -43,7 +44,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         dtype = numpy.float64
 
     import os
-    if not os.access(output_dir, os.F_OK):
+    if output_dir and not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
 
     mesh_file = ''
@@ -63,20 +64,23 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     speed2 = (material2.C[0,0]/material2.rho)**0.5
     speed = max(speed1,speed2)
 
+    mesh = None
     if dim == 1:
         if rcon.is_head_rank:
             from hedge.mesh.generator import make_uniform_1d_mesh
             mesh = make_uniform_1d_mesh(-10, 10, 500)
     elif dim == 2:
+        #periodicity= [('minus_x','plus_x'), None]
         periodicity= [None, None]
         if rcon.is_head_rank:
-            mesh_file = 'Meshes/PeriodicSquare.msh'
+            mesh_file = 'Meshes/HeterogeneousPeriodicSquare.msh'
             mesh = read_gmsh(mesh_file,
                              force_dimension=2,
                              periodicity=periodicity,
                              allow_internal_boundaries=False,
                              tag_mapper=lambda tag:tag)
     elif dim == 3:
+        #periodicity= [('minus_x','plus_x'), ('minus_y','plus_y'), ('minus_z','plus_z')]
         periodicity= [None, None, None]
         if rcon.is_head_rank:
             mesh_file = 'Meshes/PeriodicCube.msh'
@@ -92,12 +96,14 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     if rcon.is_head_rank:
         print "%d elements" % len(mesh.elements)
         mesh_data = rcon.distribute_mesh(mesh)
+        mesh_init = rcon_init.distribute_mesh(mesh)
     else:
         mesh_data = rcon.receive_mesh()
+        mesh_init = rcon_init.receive_mesh()
 
     def source_v_x(x, el):
         if dim == 2:
-            x = x - numpy.array([0.0,0.0])
+            x = x - numpy.array([800.0,0.0])
         elif dim == 3:
             x = x - numpy.array([0.0,0.0,0.0])
         return exp(-numpy.dot(x, x)*0.01)
@@ -107,14 +113,12 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             make_tdep_given, \
             TimeIntervalGivenFunction
 
-    discr_init = rcon.make_discretization(mesh_data, order=4)
-
     # Work out which elements belong to each material
     material_elements = []
     materials2 = []
     for key in materials.keys():
-        if key in discr_init.mesh.tag_to_elements.keys():
-            material_elements.append(set(discr_init.mesh.tag_to_elements[key]))
+        if key in mesh_init.tag_to_elements.keys():
+            material_elements.append(set(mesh_init.tag_to_elements[key]))
         materials2.append(materials[key])
 
     def mat_val(x, el):
@@ -188,15 +192,14 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                     flux_type=flux_type_arg)
 
 
-    discr = rcon.make_discretization(mesh_data, order=4, debug=debug,tune_for=op.op_template())
+    discr = rcon.make_discretization(mesh_data, order=order, debug=debug,tune_for=op.op_template())
 
     from hedge.timestep import LSRK4TimeStepper
     stepper = LSRK4TimeStepper(dtype=dtype)
 
     from hedge.visualization import VtkVisualizer
     if write_output:
-        from os.path import join
-        vis = VtkVisualizer(discr, rcon, join(output_dir, "fld"))
+        vis = VtkVisualizer(discr, rcon, 'fld')
 
     from hedge.tools import join_fields
     dim = discr.dimensions
@@ -209,7 +212,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                              [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])])
 
     #from hedge.discretization import Filter, ExponentialFilterResponseFunction
-    #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=4))
+    #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=order))
 
     # diagnostics setup -------------------------------------------------------
     from pytools.log import LogManager, \
@@ -217,8 +220,11 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             add_simulation_quantities, \
             add_run_info
 
+    if output_dir:
+        os.chdir(output_dir)
+
     if write_output:
-        log_file_name = join(output_dir, "elastic_wave.dat")
+        log_file_name = 'elastic_wave.dat'
     else:
         log_file_name = None
 
@@ -242,7 +248,8 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     # timestep loop -----------------------------------------------------------
     if pml:
-        pml_widths = [400, 400, 0, 400, 400, 0]
+        # widths: [x_l, y_l, z_l, x_r, y_r, z_r]
+        pml_widths = [0, 400, 0, 0, 400, 0]
         coefficients = op.coefficients_from_width(discr, widths=pml_widths, material=material1)
         rhs = op.bind(discr, coefficients)
     else:
@@ -263,7 +270,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                 if step > max_steps:
                     break
             if step % 20 == 0 and write_output:
-                visf = vis.make_file(join(output_dir, "fld-%04d" % step))
+                visf = vis.make_file("fld-%04d" % step)
                 print 'Step ' + format(step) + max_txt
 
                 vis.add_data(visf,
@@ -287,6 +294,8 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
         logmgr.close()
         discr.close()
+        if output_dir:
+            os.chdir('..')
 
 if __name__ == "__main__":
     main()
