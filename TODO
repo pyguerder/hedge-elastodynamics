@@ -10,9 +10,7 @@ TODO:
 ; Ajouts
 * Réparer CUDA problème nécessitant peut-être un Context.pop()
 * Réparer les saturations aux frontières en MPI (périodique, linéaire et non linéaire)
-* Réparer les milieux hétérogènes en MPI
 * Regarder l'utilisation de bind_interdomains dans models/advection
 * Récupérer toutes les grandeurs en un point récepteur à différents instants
-* Utiliser effectivement la lecture des sources et récepteurs depuis le maillage, en conservant la possibilité de les insérer manuellement
 * Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
 * Introduire les pertes thermovisqueuses (cf. tools_second order)

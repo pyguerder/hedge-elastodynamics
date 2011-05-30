@@ -31,7 +31,8 @@ from hedge.mesh.reader.gmsh import read_gmsh
 def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
          stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE, order = 4,
          flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64,
-         max_steps = None, output_dir = 'output', pml = False):
+         max_steps = None, output_dir = 'output', pml = False,
+         override_mesh_sources = False):
     from math import exp
     from libraries.materials import Material
     from hedge.backends import guess_run_context
@@ -101,11 +102,25 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         mesh_data = rcon.receive_mesh()
         mesh_init = rcon_init.receive_mesh()
 
-    def source_v_x(x, el):
+    source = None
+    sources = None
+    if mesh_file:
+        from libraries.gmsh_reader import GmshReader
+        gmsh = GmshReader(mesh_file, dim)
+        sources = gmsh.pointSources
+    if sources and not override_mesh_sources:
+        #FIXME: Multiple source points are currently unsupported
+        source = sources[0]
+        print "Using source from Gmsh file,", source
+    else:
         if dim == 2:
-            x = x - numpy.array([800.0,0.0])
+            source = numpy.array([800.0,0.0])
         elif dim == 3:
-            x = x - numpy.array([0.0,0.0,0.0])
+            source = numpy.array([0.0,0.0,0.0])
+        print "Using default source position,", source
+
+    def source_v_x(x, el):
+        x = x - source
         return exp(-numpy.dot(x, x)*0.01)
 
     from libraries.functions import TimeRickerWaveletGivenFunction

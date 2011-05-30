@@ -7,7 +7,9 @@ Point(3) = {-1600, 1600, 0, lc};
 Point(4) = {1600, 1600, 0, lc};
 Point(5) = {-1300, 800, 0, lc};
 Point(6) = {-800, 800, 0, lc};
-Point(7) = {-300,  800, 0, lc};
+Point(7) = {-300, 800, 0, lc};
+Point(8) = {800, 0, 0, lc};
+Point(9) = {-800, 0, 0, lc};
 
 Line(1) = {3, 4};
 Line(2) = {4, 1};
@@ -27,6 +29,8 @@ Plane Surface(10) = {10};
 Periodic Line {3} = {-1};
 Periodic Line {4} = {-2};
 
+Physical Point("PointSource") = {8};
+Physical Point("PointReceiver") = {9};
 Physical Line("plus_x") = {2};
 Physical Line("minus_x") = {4};
 Physical Surface("mat1") = {9};

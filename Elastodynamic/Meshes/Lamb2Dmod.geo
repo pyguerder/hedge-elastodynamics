@@ -20,6 +20,6 @@ Line(4) = {4, 1};
 Line Loop(5) = {1, 2, 3, 4};
 Plane Surface(6) = {5};
 
-Physical Point("Pointsource") = {6};
-Physical Point("Receiver") = {7, 8};
+Physical Point("PointSource") = {6};
+Physical Point("PointReceiver") = {7, 8};
 Physical Surface("My Surface") = {6};
