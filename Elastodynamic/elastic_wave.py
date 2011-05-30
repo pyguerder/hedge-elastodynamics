@@ -118,12 +118,13 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     materials2 = []
     for key in materials.keys():
         if key in mesh_init.tag_to_elements.keys():
-            material_elements.append(set(mesh_init.tag_to_elements[key]))
+            elements_list = [el.id for el in mesh_init.tag_to_elements[key]]
+            material_elements.append(elements_list)
         materials2.append(materials[key])
 
     def mat_val(x, el):
-        if len(material_elements) > 0 and el in material_elements[1]:
-            return 1
+        if len(material_elements) > 1 and el.id in material_elements[1]:
+                return 1
         return 0
 
     if linear:

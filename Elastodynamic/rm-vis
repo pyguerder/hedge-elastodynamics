@@ -17,3 +17,5 @@ find . -maxdepth 1 \
   -print0 | xargs -0 -r rm
 
 rm -rf output/*
+
+rm -f /tmp/codepy*/lock
