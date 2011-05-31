@@ -1,5 +1,4 @@
 TODO:
-* Dans Maxwell/2d_cavity.py, reprendre le point_getter pour écrire les valeurs lues dans un fichier texte
 * Dans Hedge, comment utiliser une liste de valeurs comme source ? (voir make_tdep_given et adapter pour avoir la même sortie que TimeIntervalGivenFunction)
 	-> voir volume_interpolant et éventuellement linéariser entre deux points du tableau de temps
 * Dans Gmsh, comment tagger une interface entre 2 éléments ? (ligne ou surface)
@@ -11,6 +10,6 @@ TODO:
 * Réparer CUDA problème nécessitant peut-être un Context.pop()
 * Réparer les saturations aux frontières en MPI (périodique, linéaire et non linéaire)
 * Regarder l'utilisation de bind_interdomains dans models/advection
-* Récupérer toutes les grandeurs en un point récepteur à différents instants
+* Utiliser une liste de valeurs comme source (éventuellement avec un retournement temporel)
 * Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
 * Introduire les pertes thermovisqueuses (cf. tools_second order)

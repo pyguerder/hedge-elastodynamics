@@ -48,6 +48,9 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     if output_dir and not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
 
+    class Receiver():
+        pass
+
     mesh_file = ''
 
     material1 = Material('Materials/aluminium.dat',dtype=dtype)
@@ -139,7 +142,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     def mat_val(x, el):
         if len(material_elements) > 1 and el.id in material_elements[1]:
-                return 1
+            return 1
         return 0
 
     if linear:
@@ -210,6 +213,23 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     discr = rcon.make_discretization(mesh_data, order=order, debug=debug,tune_for=op.op_template())
 
+    receivers = None
+    point_receivers = []
+    i = 0
+    if mesh_file:
+        gmsh = GmshReader(mesh_file, dim)
+        receivers = gmsh.pointReceivers
+    if receivers is not None:
+        for receiver in receivers:
+            point_receiver = Receiver()
+            point_receiver.evaluator = discr.get_point_evaluator(numpy.array(receiver))
+            point_receiver.done_dt = False
+            point_receiver.id = i
+            point_receiver.coordinates = receiver
+            point_receivers.append(point_receiver)
+            i += 1
+            print "Add receiver %d:" % i, receiver
+
     from hedge.timestep import LSRK4TimeStepper
     stepper = LSRK4TimeStepper(dtype=dtype)
 
@@ -241,6 +261,8 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     if write_output:
         log_file_name = 'elastic_wave.dat'
+        for point_receiver in point_receivers:
+            point_receiver.pointfile = open("receiver_%s.txt" % point_receiver.id, "wt")
     else:
         log_file_name = None
 
@@ -300,6 +322,17 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
             fields = stepper(fields, t, dt, rhs)
             #fields = mode_filter(fields)
+            for point_receiver in point_receivers:
+                val = point_receiver.evaluator(fields)
+                buffer = ""
+                if not point_receiver.done_dt:
+                    buffer += "# dt: %g s\n" % dt
+                    buffer += "# v: %d fields\n" % dim
+                    buffer += "# F: %d fields\n" % (len(fields)-dim)
+                    buffer += "# Coordinates: %s\n" % repr(point_receiver.coordinates)
+                    point_receiver.done_dt = True
+                buffer += "%s\n" % str(val)
+                point_receiver.pointfile.write(buffer)
 
         assert discr.norm(fields) < 1
         assert fields[0].dtype == dtype
@@ -307,6 +340,8 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     finally:
         if write_output:
             vis.close()
+            for point_receiver in point_receivers:
+                point_receiver.pointfile.close()
 
         logmgr.close()
         discr.close()
