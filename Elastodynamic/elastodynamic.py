@@ -34,7 +34,7 @@ from pymbolic.primitives import IfPositive
 class ElastoDynamicsOperator(HyperbolicOperator):
     """An nD linear Elastodynamics operator.
 
-    dq/dt + dF/dx + dG/dy + dH/dz = 0
+    dq/dt - dF/dx - dG/dy - dH/dz = 0
 
     where e.g. in 3D
 
@@ -134,7 +134,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         normal = make_normal(d)
         penalty = flux_max(wave_speed_ph.int,wave_speed_ph.ext)*(state_ph.ext-state_ph.int)
 
-        flux_strong = 0.5*sum(n_i*(f_i.int-f_i.ext) for n_i, f_i in zip(normal, fluxes_ph))
+        flux_strong = 0.5*sum(n_i*(f_i.ext-f_i.int) for n_i, f_i in zip(normal, fluxes_ph))
 
         if self.flux_type == "central":
             pass
@@ -144,8 +144,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
             raise ValueError("Invalid flux type '%s'" % self.flux_type)
 
         flux_op = get_flux_operator(flux_strong)
-        fluxes2 = [-fluxes[i] for i in range(len(fluxes))] # We need the opposite of fluxes
-        int_operand = join_fields(wave_speed,q,*fluxes2)
+        int_operand = join_fields(wave_speed,q,*fluxes)
 
         return (flux_op(int_operand)
                 +sum(flux_op(BoundaryPair(int_operand, join_fields(0,bdry_state, *bdry_fluxes), tag))
@@ -206,12 +205,12 @@ class ElastoDynamicsOperator(HyperbolicOperator):
 
         # stress free BCs -------------------------------------------------------
         if tag == self.boundaryconditions_tag['stressfree']:
-            signP = 1
-            signv = -1
-        # fixed BCs -------------------------------------------------------------
-        elif tag == self.boundaryconditions_tag['fixed']:
             signP = -1
             signv = 1
+        # fixed BCs -------------------------------------------------------------
+        elif tag == self.boundaryconditions_tag['fixed']:
+            signP = 1
+            signv = -1
         else:
             raise ValueError("Invalid boundary conditions")
 
@@ -337,7 +336,7 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
 
     see YiFeng LI PhD p. 41
 
-    dq/dt + dF/dx + dG/dy + dH/dz = 0
+    dq/dt - dF/dx - dG/dy - dH/dz = 0
 
     where e.g. in 3D
 
@@ -512,12 +511,12 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
 
         # stress free BCs -------------------------------------------------------
         if tag == self.boundaryconditions_tag['stressfree']:
-            signP = 1
-            signv = -1
-        # fixed BCs -------------------------------------------------------------
-        elif tag == self.boundaryconditions_tag['fixed']:
             signP = -1
             signv = 1
+        # fixed BCs -------------------------------------------------------------
+        elif tag == self.boundaryconditions_tag['fixed']:
+            signP = 1
+            signv = -1
         else:
             raise ValueError("Invalid boundary conditions")
 
@@ -642,12 +641,12 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
 
         # stress free BCs -------------------------------------------------------
         if tag == self.boundaryconditions_tag['stressfree']:
-            signP = 1
-            signv = -1
-        # fixed BCs -------------------------------------------------------------
-        elif tag == self.boundaryconditions_tag['fixed']:
             signP = -1
             signv = 1
+        # fixed BCs -------------------------------------------------------------
+        elif tag == self.boundaryconditions_tag['fixed']:
+            signP = 1
+            signv = -1
         else:
             raise ValueError("Invalid boundary conditions")
 
