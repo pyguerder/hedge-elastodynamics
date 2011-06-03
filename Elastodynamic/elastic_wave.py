@@ -31,8 +31,8 @@ from hedge.mesh.reader.gmsh import read_gmsh
 def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
          stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE, order = 4,
          flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64,
-         max_steps = None, output_dir = 'output', pml = False,
-         override_mesh_sources = False):
+         max_steps = None, output_dir = 'output', pml = True,
+         override_mesh_sources = False, final_time = 2.0, quiet_output = True):
     from math import exp
     from libraries.materials import Material
     from hedge.backends import guess_run_context
@@ -48,51 +48,42 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     if output_dir and not os.access(output_dir, os.F_OK):
         os.makedirs(output_dir)
 
+    if quiet_output:
+        print_output = rcon.is_head_rank
+    else:
+        print_output = True
+    if print_output:
+        print "Rank", rcon.rank, "will print its output."
+    else:
+        print "Rank", rcon.rank, "will be silent."
+
     class Receiver():
         pass
 
     mesh_file = ''
 
-    material1 = Material('Materials/aluminium.dat',dtype=dtype)
-    material2 = Material('Materials/calcite.dat',dtype=dtype)
-
-    # Only calcite.dat has a Cnl for the moment!
-    if linear == False:
-            material1 = Material('Materials/calcite.dat',dtype=dtype)
-            material2 = Material('Materials/calcite.dat',dtype=dtype)
-
-    materials = { 'mat1': material1,
-                  'mat2': material2 }
-
-    speed1 = (material1.C[0,0]/material1.rho)**0.5
-    speed2 = (material2.C[0,0]/material2.rho)**0.5
-    speed = max(speed1,speed2)
-
     mesh = None
     if dim == 1:
-        if rcon.is_head_rank:
-            from hedge.mesh.generator import make_uniform_1d_mesh
-            mesh = make_uniform_1d_mesh(-10, 10, 500)
+        from hedge.mesh.generator import make_uniform_1d_mesh
+        mesh = make_uniform_1d_mesh(-10, 10, 500)
     elif dim == 2:
         #periodicity= [('minus_x','plus_x'), None]
         periodicity= [None, None]
-        if rcon.is_head_rank:
-            mesh_file = 'Meshes/HeterogeneousPeriodicSquare.msh'
-            mesh = read_gmsh(mesh_file,
-                             force_dimension=2,
-                             periodicity=periodicity,
-                             allow_internal_boundaries=False,
-                             tag_mapper=lambda tag:tag)
+        mesh_file = 'Meshes/HeterogeneousPeriodicSquare.msh'
+        mesh = read_gmsh(mesh_file,
+                         force_dimension=2,
+                         periodicity=periodicity,
+                         allow_internal_boundaries=False,
+                         tag_mapper=lambda tag:tag)
     elif dim == 3:
         #periodicity= [('minus_x','plus_x'), ('minus_y','plus_y'), ('minus_z','plus_z')]
         periodicity= [None, None, None]
-        if rcon.is_head_rank:
-            mesh_file = 'Meshes/PeriodicCube.msh'
-            mesh = read_gmsh(mesh_file,
-                             force_dimension=3,
-                             periodicity=periodicity,
-                             allow_internal_boundaries=False,
-                             tag_mapper=lambda tag:tag)
+        mesh_file = 'Meshes/PeriodicCube.msh'
+        mesh = read_gmsh(mesh_file,
+                         force_dimension=3,
+                         periodicity=periodicity,
+                         allow_internal_boundaries=False,
+                         tag_mapper=lambda tag:tag)
     else:
         raise RuntimeError, "Bad number of dimensions"
 
@@ -109,18 +100,20 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     sources = None
     if mesh_file:
         from libraries.gmsh_reader import GmshReader
-        gmsh = GmshReader(mesh_file, dim)
+        gmsh = GmshReader(mesh_file, dim, print_output)
         sources = gmsh.pointSources
     if sources and not override_mesh_sources:
         #FIXME: Multiple source points are currently unsupported
         source = sources[0]
-        print "Using source from Gmsh file,", source
+        if print_output:
+            print "Using source from Gmsh file,", source
     else:
         if dim == 2:
             source = numpy.array([800.0,0.0])
         elif dim == 3:
             source = numpy.array([0.0,0.0,0.0])
-        print "Using default source position,", source
+        if print_output:
+            print "Using default source position,", source
 
     def source_v_x(x, el):
         x = x - source
@@ -131,19 +124,46 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             make_tdep_given, \
             TimeIntervalGivenFunction
 
+    # Define materials and link them with elements
+
+    material1 = Material('Materials/aluminium.dat', dtype, print_output)
+    material2 = Material('Materials/calcite.dat', dtype, print_output)
+
+    # Only calcite.dat has a Cnl for the moment!
+    if linear == False:
+            material1 = Material('Materials/calcite.dat', dtype, print_output)
+            material2 = Material('Materials/calcite.dat', dtype, print_output)
+
     # Work out which elements belong to each material
     material_elements = []
-    materials2 = []
-    for key in materials.keys():
-        if key in mesh_init.tag_to_elements.keys():
-            elements_list = [el.id for el in mesh_init.tag_to_elements[key]]
-            material_elements.append(elements_list)
-        materials2.append(materials[key])
+    materials = []
+    speeds = []
+    
+    # Default material is material1
+    speeds.append((material1.C[0,0]/material1.rho)**0.5)
+    materials.append(material1)
+    
+    if 'mat1' in mesh_init.tag_to_elements.keys():
+        elements_list = [el.id for el in mesh_init.tag_to_elements['mat1']]
+        material_elements.append(elements_list)
+    if 'mat2' in mesh_init.tag_to_elements.keys():
+        elements_list = [el.id for el in mesh_init.tag_to_elements['mat2']]
+        material_elements.append(elements_list)
+        speeds.append((material2.C[0,0]/material2.rho)**0.5)
+        materials.append(material2)
+    else:
+        # If we have no 'mat2', then the second material is material1
+        materials.append(material1)
+    speed = max(speeds)
 
     def mat_val(x, el):
+        # Will be used in IfPositive(mat, then, else)
+        # 1 will lead to then, 0 to else; default is 0/else
         if len(material_elements) > 1 and el.id in material_elements[1]:
             return 1
         return 0
+
+    # Finished with materials; define the operators
 
     if linear:
         if pml:
@@ -159,7 +179,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                             { 'stressfree' : stfree_tag,
                               'fixed' : fix_tag,
                               'open' : op_tag },
-                    materials = materials2,
+                    materials = materials,
                     flux_type=flux_type_arg)
         else:
             from elastodynamic import ElastoDynamicsOperator
@@ -174,7 +194,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                             { 'stressfree' : stfree_tag,
                               'fixed' : fix_tag,
                               'open' : op_tag },
-                    materials = materials2,
+                    materials = materials,
                     flux_type=flux_type_arg)
     else:
         if pml:
@@ -191,7 +211,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                        { 'stressfree' : stfree_tag,
                          'fixed' : fix_tag,
                          'open' : op_tag },
-                    materials = materials2,
+                    materials = materials,
                     flux_type=flux_type_arg)
         else:
             from elastodynamic import NLElastoDynamicsOperator
@@ -207,7 +227,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                        { 'stressfree' : stfree_tag,
                          'fixed' : fix_tag,
                          'open' : op_tag },
-                    materials = materials2,
+                    materials = materials,
                     flux_type=flux_type_arg)
 
 
@@ -217,18 +237,24 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     point_receivers = []
     i = 0
     if mesh_file:
-        gmsh = GmshReader(mesh_file, dim)
+        gmsh = GmshReader(mesh_file, dim, print_output)
         receivers = gmsh.pointReceivers
     if receivers is not None:
         for receiver in receivers:
-            point_receiver = Receiver()
-            point_receiver.evaluator = discr.get_point_evaluator(numpy.array(receiver))
-            point_receiver.done_dt = False
-            point_receiver.id = i
-            point_receiver.coordinates = receiver
-            point_receivers.append(point_receiver)
-            i += 1
-            print "Add receiver %d:" % i, receiver
+            try:
+                point_receiver = Receiver()
+                point_receiver.evaluator = discr.get_point_evaluator(numpy.array(receiver))
+                point_receiver.done_dt = False
+                point_receiver.id = i
+                point_receiver.coordinates = receiver
+            except:
+                if print_output:
+                    print "Receiver ignored (point not found):", receiver
+            else:
+                point_receivers.append(point_receiver)
+                i += 1
+                if print_output:
+                    print "Add receiver %d:" % i, receiver
 
     from hedge.timestep import LSRK4TimeStepper
     stepper = LSRK4TimeStepper(dtype=dtype)
@@ -288,7 +314,8 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     if pml:
         # widths: [x_l, y_l, z_l, x_r, y_r, z_r]
         pml_widths = [0, 400, 0, 0, 400, 0]
-        coefficients = op.coefficients_from_width(discr, widths=pml_widths, material=material1)
+        coefficients = op.coefficients_from_width(discr, mesh,
+                            widths=pml_widths, material=material1)
         rhs = op.bind(discr, coefficients)
     else:
         rhs = op.bind(discr)
@@ -298,7 +325,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     try:
         from hedge.timestep import times_and_steps
 
-        step_it = times_and_steps(final_time=2.0,
+        step_it = times_and_steps(final_time=final_time,
                                   logmgr=None, #None or logmgr
                                   max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
 
@@ -309,7 +336,8 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                     break
             if step % 20 == 0 and write_output:
                 visf = vis.make_file("fld-%04d" % step)
-                print 'Step ' + format(step) + max_txt
+                if print_output:
+                    print 'Step ' + format(step) + max_txt
 
                 vis.add_data(visf,
                         [

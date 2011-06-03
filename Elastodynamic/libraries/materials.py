@@ -26,15 +26,17 @@ from scipy import triu
 
 class Material:
     # Initialize the material from the given file
-    def __init__(self, filename, dtype):
+    def __init__(self, filename, dtype, print_output):
         
         self.dtype = dtype
+        self.print_output = print_output
+        self.filename = filename
                 
         # open file
         try:
             self.file = open (filename, 'r')
         except IOError, message:
-            print >> sys.stderr, 'Failed to open file: ', message
+            print >> sys.stderr, 'Failed to open', filename, '-', message
             sys.exit(1);
 
         # Read the mass density.
@@ -78,15 +80,6 @@ class Material:
                         elements = myline.split()
                         for k in range(j, 6):
                             Cnl[i][j][k] = float(elements[k])
-                            
-                            # PY: remove this; the test with test.dat proved that this won't happen
-                            # if (Cnl[j][i][k] != 0 and Cnl[j][i][k] != float(elements[k])) \
-                            #    or (Cnl[k][j][i] != 0 and Cnl[k][j][i] != float(elements[k])) \
-                            #    or (Cnl[i][k][j] != 0 and Cnl[i][k][j] != float(elements[k])) \
-                            #    or (Cnl[k][i][j] != 0 and Cnl[k][i][j] != float(elements[k])) \
-                            #    or (Cnl[j][k][i] != 0 and Cnl[j][k][i] != float(elements[k])):
-                            #        print >> sys.stderr, 'Affected 2 different values when applying symmetries'
-                            
                             Cnl[j][i][k] = float(elements[k])
                             Cnl[k][j][i] = float(elements[k])
                             Cnl[i][k][j] = float(elements[k])
@@ -95,10 +88,11 @@ class Material:
                 myline = self.file.readline()
             
         except:
-            print >> sys.stderr, 'Material file contains no valid $' + name + ' section.'
+            if self.print_output:
+                print self.filename, 'contains no valid', name , 'section.'
             return None, None
-        if ( myline != '$End' + name + '\n' ):
-            print >> sys.stderr, 'Material file has an invalid $' + name + ' section.'
+        if (myline != '$End' + name + '\n') and self.print_output:
+            print self.filename, 'has an invalid', name, 'section.'
         return Cnl
     
     # Read a symmetric 6×6 matrix
@@ -137,10 +131,11 @@ class Material:
                 and (C[0, 0] == C[0, 1] + C[3, 3])):
                     elastic_type = 'isotropic'
         except:
-            print >> sys.stderr, 'Material file contains no valid $' + name + ' section.'
+            if self.print_output:
+                print self.filename, 'contains no valid', name, 'section.'
             return None, None
-        if ( self.file.readline() != '$End' + name + '\n' ):
-            print >> sys.stderr, 'Material file has an invalid $' + name + ' section.'
+        if (self.file.readline() != '$End' + name + '\n') and self.print_output:
+            print self.filename, 'has an invalid', name, 'section.'
         return C, elastic_type
     
     def Read_TextValue(self, name):
@@ -151,8 +146,8 @@ class Material:
     
         value = self.file.readline()
         
-        if ( myline != "" and self.file.readline() != '$End' + name + '\n' ):
-            print >> sys.stderr, 'Material file has an invalid $' + name + ' section.'
+        if (myline != "" and self.file.readline() != '$End' + name + '\n') and self.print_output:
+            print self.filename, 'has an invalid', name, 'section.'
         return value
 
     def Read_FloatValue(self, name):
@@ -161,7 +156,8 @@ class Material:
             value = float(text)
         except ValueError:
             value = 0.
-            print >> sys.stderr, 'Material file contains no valid $' + name + ' section.'
+            if self.print_output:
+                print self.filename, 'contains no valid', name, 'section.'
             return None
         return value
 

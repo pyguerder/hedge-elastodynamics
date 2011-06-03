@@ -20,14 +20,18 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see U{http://www.gnu.org/licenses/}.
 """
 
+import sys
+
 class GmshReader:
-    def __init__(self, filename, dim):
+    def __init__(self, filename, dim, print_output):
         # open file
         try:
             self.file = open (filename, 'r')
         except IOError, message:
-            print 'Failed to open file: ', message
+            print >> sys.stderr, 'Failed to open file: ', message
             raise RuntimeError("Failed to open file")
+
+        self.print_output = print_output
 
         if dim == 1 or dim == 2 or dim == 3:
             self.dim = dim
@@ -59,7 +63,8 @@ class GmshReader:
             myline = self.file.readline()
 
         if myline == '':
-            print 'This file contains no PhysicalName'
+            if self.print_output:
+                print 'This file contains no PhysicalName'
             return
 
         myline = self.file.readline()
@@ -77,13 +82,13 @@ class GmshReader:
             number = int(number)
 
             if not name[0] == '"' or not name[-2] == '"':
-                print 'Expected quotes around physical name'
+                print >> sys.stderr, 'Expected quotes around physical name'
 
             self.tag_name_map[number, dimension] = name[1:-2]
             name_idx +=1
 
         if name_count+1 != name_idx:
-            print 'Unexpected number of physical names found'
+            print >> sys.stderr, 'Unexpected number of physical names found'
 
     def Read_Elements(self):
         self.file.seek(0, 0)
@@ -148,7 +153,7 @@ class GmshReader:
             name_idx +=1
 
         if name_count+1 != name_idx:
-            print 'Unexpected number of elements found'
+            print >> sys.stderr, 'Unexpected number of elements found'
 
     def Read_Nodes(self):
         self.file.seek(0, 0)
@@ -163,7 +168,7 @@ class GmshReader:
         while True:
             myline = self.file.readline()
             if myline == '$EndNodes\n':
-                    break
+                break
 
             values = myline.split()
 
@@ -183,10 +188,10 @@ class GmshReader:
                     self.nodes_map[number] = (coord1)
                 name_idx +=1
             except:
-                print 'Unexpected dimension'
+                print >> sys.stderr, 'Unexpected dimension'
 
         if name_count+1 != name_idx:
-            print 'Unexpected number of nodes found'
+            print >> sys.stderr, 'Unexpected number of nodes found'
 
     def Get_TagId(self, tag_name):
         if tag_name in self.tag_name_map.values():
@@ -201,7 +206,8 @@ class GmshReader:
             nodes = [v for k, v in self.nodes_map.iteritems() if k in elements]
             return nodes
         else:
-            print "No " + tag_name + " in this file"
+            if self.print_output:
+                print "No " + tag_name + " in this file"
     
     def Get_Surfaces(self, tag_name):
         tag_id = self.Get_TagId(tag_name)
@@ -209,7 +215,8 @@ class GmshReader:
             elements = [k1 for (k1, k2), _ in self.surfaces_map.iteritems() if k2 == tag_id]
             return elements
         else:
-            print "No " + tag_name + " in this file"
+            if self.print_output:
+                print "No " + tag_name + " in this file"
 
 #myGmsh = GmshReader('../Meshes/Lamb2DRect.msh', 2)
 #print 'PointReceiver:', myGmsh.pointReceivers

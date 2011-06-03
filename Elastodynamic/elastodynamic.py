@@ -832,7 +832,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                r_dist**kappa_exponent
 
 
-    def coefficients_from_boxes(self, discr, material,
+    def coefficients_from_boxes(self, discr, global_mesh, material,
             inner_bbox, outer_bbox=None,
             sigma_magnitude=None, alpha_magnitude=None,
             kappa_magnitude=None, sigma_exponent=None,
@@ -841,7 +841,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         from math import sqrt, log
 
         if outer_bbox is None:
-            outer_bbox = discr.mesh.bounding_box()
+            outer_bbox = global_mesh.bounding_box()
 
         if sigma_exponent is None:
             sigma_exponent = 2
@@ -919,18 +919,19 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
             self._bounding_box = [numpy.min(mesh.points, axis=0), numpy.max(mesh.points, axis=0)]
             return self._bounding_box
 
-    def coefficients_from_width(self, discr, widths, material,
+    def coefficients_from_width(self, discr, global_mesh, widths, material,
             sigma_magnitude=None, alpha_magnitude=None, kappa_magnitude=None,
             sigma_exponent=None, alpha_exponent=None, kappa_exponent=None,
             dtype=None):
         """
         :param width: [x_l, y_l, z_l, x_r, y_r, z_r]
         """
-        o_limits = self.bounding_box(discr.mesh)
+        o_limits = self.bounding_box(global_mesh)
         i_limits = [numpy.array([o_limits[0][i] + widths[i] for i in range(self.dimensions)]),
                     numpy.array([o_limits[1][i] - widths[i+3] for i in range(self.dimensions)])]
 
         return self.coefficients_from_boxes(discr,
+                global_mesh,
                 material,
                 i_limits,
                 o_limits,
