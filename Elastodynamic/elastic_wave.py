@@ -96,6 +96,9 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         mesh_data = rcon.receive_mesh()
         mesh_init = rcon_init.receive_mesh()
 
+
+    # Define sources
+
     source = None
     sources = None
     if mesh_file:
@@ -115,14 +118,39 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         if print_output:
             print "Using default source position,", source
 
+    from math import sin, cos, pi
+
     def source_v_x(x, el):
         x = x - source
-        return exp(-numpy.dot(x, x)*0.01)
+        return exp(-numpy.dot(x, x)*0.01)*sin(10*pi/180)
+    
+    def source_v_y(y, el):
+        y = y - source
+        return exp(-numpy.dot(y, y)*0.01)*cos(10*pi/180)
+
+    def source_v_z(z, el):
+        z = z - source
+        return exp(-numpy.dot(z, z)*0.01)
 
     from libraries.functions import TimeRickerWaveletGivenFunction
-    from hedge.data import \
-            make_tdep_given, \
-            TimeIntervalGivenFunction
+    from hedge.data import make_tdep_given, TimeIntervalGivenFunction
+
+    source_x = TimeIntervalGivenFunction(
+                    TimeRickerWaveletGivenFunction(
+                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16), 0, 2)
+    source_y = TimeIntervalGivenFunction(
+                    TimeRickerWaveletGivenFunction(
+                        make_tdep_given(source_v_y), fc=7.25, tD = 0.16), 0, 2)
+    source_z = TimeIntervalGivenFunction(
+                    TimeRickerWaveletGivenFunction(
+                        make_tdep_given(source_v_z), fc=7.25, tD = 0.16), 0, 2)
+
+    sources = { 'source_x' : source_x,
+                'source_y' : source_y,
+                'source_z' : source_z }
+
+    # End of sources definition
+    
 
     # Define materials and link them with elements
 
@@ -163,7 +191,10 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             return 1
         return 0
 
-    # Finished with materials; define the operators
+    # End of materials definition
+
+
+    # Define the operators
 
     if linear:
         if pml:
@@ -171,10 +202,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             op = NPMLElastoDynamicsOperator(dimensions=dim,
                     speed=speed,
                     material = make_tdep_given(mat_val),
-                    source=TimeIntervalGivenFunction(
-                        TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
-                        0, 2),
+                    sources = sources,
                     boundaryconditions_tag = \
                             { 'stressfree' : stfree_tag,
                               'fixed' : fix_tag,
@@ -186,10 +214,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             op = ElastoDynamicsOperator(dimensions=dim,
                     speed=speed,
                     material = make_tdep_given(mat_val),
-                    source=TimeIntervalGivenFunction(
-                        TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
-                        0, 2),
+                    sources = sources,
                     boundaryconditions_tag = \
                             { 'stressfree' : stfree_tag,
                               'fixed' : fix_tag,
@@ -202,10 +227,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             op = NLNPMLElastoDynamicsOperator(dimensions=dim,
                     speed=speed,
                     material = make_tdep_given(mat_val),
-                    source=TimeIntervalGivenFunction(
-                        TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
-                        0, 2),
+                    sources = sources,
                     nonlinearity_type="classical",
                     boundaryconditions_tag = \
                        { 'stressfree' : stfree_tag,
@@ -218,10 +240,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             op = NLElastoDynamicsOperator(dimensions=dim,
                     speed=speed,
                     material = make_tdep_given(mat_val),
-                    source=TimeIntervalGivenFunction(
-                        TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16),
-                        0, 2),
+                    sources = sources,
                     nonlinearity_type="classical",
                     boundaryconditions_tag = \
                        { 'stressfree' : stfree_tag,

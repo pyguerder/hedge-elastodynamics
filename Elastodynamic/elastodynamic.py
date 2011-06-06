@@ -59,11 +59,12 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                       'fixed' : 'fixed',
                       'open' : 'open' },
                  materials = None,
-                 source = None,
+                 sources = None,
                  flux_type = "lf",
                  ):
         """
-        :param source: should implement
+        :param sources: should be a table of functions
+        that implement
         class:`hedge.data.IFieldDependentGivenFunction`
         or be None.
         :param materials: should be a list
@@ -81,7 +82,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         self.speed = speed
 
         self.boundaryconditions_tag = boundaryconditions_tag
-        self.source = source
+        self.sources = sources
         self.flux_type = flux_type
         self.state_null = make_tdep_constant(0)
 
@@ -256,6 +257,26 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         else:
             raise ValueError("Invalid dimension")
 
+    def add_sources(self, result):
+        from hedge.optemplate import Field
+        dim = self.dimensions
+        if self.sources is not None:
+            if dim == 1:
+                result[0] += Field('source_x')
+            elif dim == 2:
+                result[0] += Field('source_x')
+                result[1] += Field('source_y')
+            elif dim == 3:
+                result[0] += Field('source_x')
+                result[1] += Field('source_y')
+                result[2] += Field('source_z')
+        return result
+
+    def bind_sources(self, t, discr):
+        kwargs = {}
+        for source in self.sources:
+            kwargs[source] = self.sources[source].volume_interpolant(t, discr)
+        return kwargs
 
     def op_template(self):
         from hedge.optemplate import \
@@ -299,14 +320,11 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bw, bc_null, tag)) for tag, bc, bc_null, bw in all_tags_and_bcs]
 
         # entire operator -----------------------------------------------------
-        from math import sin, cos, pi
         nabla = make_nabla(dim)
 
         result = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
 
-        if self.source is not None:
-            result[0] += Field('source_v_x')*sin(10*pi/180)
-            result[1] += Field('source_v_x')*cos(10*pi/180)
+        result = self.add_sources(result)
 
         return result
 
@@ -317,10 +335,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         compiled_op_template = discr.compile(self.op_template())
 
         def rhs(t, q):
-            extra_kwargs = {}
-
-            if self.source is not None:
-                extra_kwargs['source_v_x'] = self.source.volume_interpolant(t, discr)
+            extra_kwargs = self.bind_sources(t, discr)
             extra_kwargs['state_null'] = self.state_null.volume_interpolant(t, discr)
 
             return compiled_op_template(q=q, material=self.material.volume_interpolant(t, discr), **extra_kwargs)
@@ -361,12 +376,13 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
                     { 'stressfree' : 'stressfree',
                       'fixed' : 'fixed',
                       'open' : 'open' },
-                 source = None,
+                 sources = None,
                  materials = None,
                  flux_type = "lf",
                  ):
         """
-        :param source: should implement
+        :param sources: should be a table of functions
+        that implement
         class:`hedge.data.IFieldDependentGivenFunction`
         or be None.
         :param materials: should be a list
@@ -384,7 +400,7 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         self.speed = speed
 
         self.boundaryconditions_tag = boundaryconditions_tag
-        self.source = source
+        self.sources = sources
         self.flux_type = flux_type
 
         self.nonlinearity_type = nonlinearity_type
@@ -745,14 +761,11 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                                       for tag, bc, bc_null, bw in all_tags_and_bcs]
 
         # entire operator -----------------------------------------------------
-        from math import sin, cos, pi
         nabla = make_nabla(dim)
 
         res_q = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
 
-        if self.source is not None:
-            res_q[0] += Field('source_v_x')*sin(10*pi/180)
-            res_q[1] += Field('source_v_x')*cos(10*pi/180)
+        res_q = self.add_sources(res_q)
 
         F2 = self.F2(w)
         F = self.F(q)
@@ -785,10 +798,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         compiled_op_template = discr.compile(self.op_template())
 
         def rhs(t, q):
-            extra_kwargs = {}
-
-            if self.source is not None:
-                extra_kwargs['source_v_x'] = self.source.volume_interpolant(t, discr)
+            extra_kwargs = self.bind_sources(t, discr)
             extra_kwargs['state_null'] = self.state_null.volume_interpolant(t, discr)
 
             dim = self.dimensions            
@@ -1049,14 +1059,11 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
                                       for tag, bc, bc_null, bw in all_tags_and_bcs]
 
         # entire operator -----------------------------------------------------
-        from math import sin, cos, pi
         nabla = make_nabla(dim)
 
         res_q = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
 
-        if self.source is not None:
-            res_q[0] += Field('source_v_x')*sin(10*pi/180)
-            res_q[1] += Field('source_v_x')*cos(10*pi/180)
+        res_q = self.add_sources(res_q)
 
         F2 = self.F2(w)
         F = self.F(q)

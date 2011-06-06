@@ -11,8 +11,6 @@ TODO:
 * Réparer le problème CUDA nécessitant peut-être un Context.pop()
 * Réparer les saturations aux frontières en MPI (périodique, linéaire et non linéaire)
 * Regarder l'utilisation de bind_interdomains dans models/advection
-* Sortir le *sin, *cos de l'opérateur dans le calcul de la source et remplacer le second v_x par un v_y ; le définir pour les dimensions 1, 2 et 3 avec un if
-* Permettre de définir différents types de sources
 * Utiliser une liste de valeurs comme source (éventuellement avec un retournement temporel)
 * Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
 * Introduire les pertes thermovisqueuses (cf. tools_second order)
