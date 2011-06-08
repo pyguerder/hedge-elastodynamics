@@ -358,13 +358,13 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                 if print_output:
                     print 'Step ' + format(step) + max_txt
 
-                vis.add_data(visf,
-                        [
-                            ("v", discr.convert_volume(fields[0:dim], "numpy")),
-                            ("F", discr.convert_volume(fields[dim:], "numpy")),
-                        ],
-                        time=t,
-                        step=step)
+                variables = [
+                        ("v", discr.convert_volume(fields[0:dim], "numpy")),
+                        ("F", discr.convert_volume(fields[dim:dim+op.dimF[dim]], "numpy")) ]
+                if pml:
+                    f2 = ("F2", discr.convert_volume(fields[dim+op.dimF[dim]:dim+op.dimF[dim]+dim*dim*2], "numpy"))
+                    variables.append(f2)
+                vis.add_data(visf, variables, time=t, step=step)
                 visf.close()
 
             fields = stepper(fields, t, dt, rhs)
