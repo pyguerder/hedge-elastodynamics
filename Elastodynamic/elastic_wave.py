@@ -28,11 +28,34 @@ import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
 from hedge.mesh.reader.gmsh import read_gmsh
 
-def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
-         stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE, order = 4,
-         flux_type_arg="lf", debug=["cuda_no_plan"], dtype = numpy.float64,
-         max_steps = None, output_dir = 'output', pml = True,
-         override_mesh_sources = False, final_time = 2.0, quiet_output = True):
+
+def main(write_output=True, allow_features='mpi', dim=2, order=4,
+         stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
+         flux_type_arg="lf", debug=[], dtype=numpy.float64,
+         max_steps=None, output_dir='output', pml=True,
+         override_mesh_sources=False, final_time=2.0, quiet_output=True,
+         nonlinearity_type=None):
+    """
+    Parameters:
+    write_output: whether to write (True) visualization files or not (False)
+    allow_features: 'mpi' or 'cuda'
+    dim: 1, 2 or 3
+    order: the order of the method
+    stfree_tag: which elements to mark as stress-free boundaries
+    fix_tag: which elements to mark as fixed boundaries
+    op_tag: which elements to mark as open boundaries
+    flux_type: 'lf' (Lax-Freidrich flux) or 'central'
+    debug: debug parameters to use in make_discretization()
+    dtype: defaults to float64, automatically reduced to float32 for cuda
+    max_steps: None (no limit) or maximum number of steps to compute
+    output_dir: directory where to write the output
+    pml: True or False, to enable or disable the NPML
+    override_mesh_sources: if True, ignores the source points of the mesh file
+    final_time: number of seconds of simulations to compute
+    quiet_output: if True, only the main thread will print information
+    nonlinearity_type: None (linear) or 'classical' (non-linear)
+    """
+
     from math import exp
     from libraries.materials import Material
     from hedge.backends import guess_run_context
@@ -41,6 +64,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     if allow_features == 'cuda':
         dtype = numpy.float32
+        debug = ['cuda_no_plan']
     elif allow_features == 'mpi':
         dtype = numpy.float64
 
@@ -59,6 +83,10 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
 
     class Receiver():
         pass
+
+    #
+    # Define mesh
+    #
 
     mesh_file = ''
 
@@ -85,8 +113,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                          allow_internal_boundaries=False,
                          tag_mapper=lambda tag:tag)
     else:
-        raise RuntimeError, "Bad number of dimensions"
-
+        raise RuntimeError('Bad number of dimensions')
 
     if rcon.is_head_rank:
         print "%d elements" % len(mesh.elements)
@@ -96,8 +123,13 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         mesh_data = rcon.receive_mesh()
         mesh_init = rcon_init.receive_mesh()
 
+    #
+    # End of mesh definition
+    #
 
+    #
     # Define sources
+    #
 
     source = None
     sources = None
@@ -123,7 +155,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     def source_v_x(x, el):
         x = x - source
         return exp(-numpy.dot(x, x)*0.01)*sin(10*pi/180)
-    
+
     def source_v_y(y, el):
         y = y - source
         return exp(-numpy.dot(y, y)*0.01)*cos(10*pi/180)
@@ -149,16 +181,19 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
                 'source_y' : source_y,
                 'source_z' : source_z }
 
+    #
     # End of sources definition
-    
+    #
 
+    #
     # Define materials and link them with elements
+    #
 
     material1 = Material('Materials/aluminium.dat', dtype, print_output)
     material2 = Material('Materials/calcite.dat', dtype, print_output)
 
     # Only calcite.dat has a Cnl for the moment!
-    if linear == False:
+    if nonlinearity_type is not None:
             material1 = Material('Materials/calcite.dat', dtype, print_output)
             material2 = Material('Materials/calcite.dat', dtype, print_output)
 
@@ -166,11 +201,11 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
     material_elements = []
     materials = []
     speeds = []
-    
+
     # Default material is material1
     speeds.append((material1.C[0,0]/material1.rho)**0.5)
     materials.append(material1)
-    
+
     if 'mat1' in mesh_init.tag_to_elements.keys():
         elements_list = [el.id for el in mesh_init.tag_to_elements['mat1']]
         material_elements.append(elements_list)
@@ -191,64 +226,50 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
             return 1
         return 0
 
+    #
     # End of materials definition
+    #
 
+    #
+    # Define the operator
+    #
 
-    # Define the operators
+    kwargs = {
+              'dimensions': dim,
+              'speed': speed,
+              'material': make_tdep_given(mat_val),
+              'sources': sources,
+              'boundaryconditions_tag': \
+                    { 'stressfree' : stfree_tag,
+                      'fixed' : fix_tag,
+                      'open' : op_tag },
+              'materials': materials,
+              'flux_type': flux_type_arg
+              }
 
-    if linear:
-        if pml:
-            from elastodynamic import NPMLElastoDynamicsOperator
-            op = NPMLElastoDynamicsOperator(dimensions=dim,
-                    speed=speed,
-                    material = make_tdep_given(mat_val),
-                    sources = sources,
-                    boundaryconditions_tag = \
-                            { 'stressfree' : stfree_tag,
-                              'fixed' : fix_tag,
-                              'open' : op_tag },
-                    materials = materials,
-                    flux_type=flux_type_arg)
-        else:
-            from elastodynamic import ElastoDynamicsOperator
-            op = ElastoDynamicsOperator(dimensions=dim,
-                    speed=speed,
-                    material = make_tdep_given(mat_val),
-                    sources = sources,
-                    boundaryconditions_tag = \
-                            { 'stressfree' : stfree_tag,
-                              'fixed' : fix_tag,
-                              'open' : op_tag },
-                    materials = materials,
-                    flux_type=flux_type_arg)
-    else:
+    operator = None
+    if nonlinearity_type is not None:
+        kwargs['nonlinearity_type'] = nonlinearity_type
         if pml:
             from elastodynamic import NLNPMLElastoDynamicsOperator
-            op = NLNPMLElastoDynamicsOperator(dimensions=dim,
-                    speed=speed,
-                    material = make_tdep_given(mat_val),
-                    sources = sources,
-                    nonlinearity_type="classical",
-                    boundaryconditions_tag = \
-                       { 'stressfree' : stfree_tag,
-                         'fixed' : fix_tag,
-                         'open' : op_tag },
-                    materials = materials,
-                    flux_type=flux_type_arg)
+            operator = 'NLNPMLElastoDynamicsOperator'
         else:
             from elastodynamic import NLElastoDynamicsOperator
-            op = NLElastoDynamicsOperator(dimensions=dim,
-                    speed=speed,
-                    material = make_tdep_given(mat_val),
-                    sources = sources,
-                    nonlinearity_type="classical",
-                    boundaryconditions_tag = \
-                       { 'stressfree' : stfree_tag,
-                         'fixed' : fix_tag,
-                         'open' : op_tag },
-                    materials = materials,
-                    flux_type=flux_type_arg)
+            operator = 'NLElastoDynamicsOperator'
+    else:
+        if pml:
+            from elastodynamic import NPMLElastoDynamicsOperator
+            operator = "NPMLElastoDynamicsOperator"
+        else:
+            from elastodynamic import ElastoDynamicsOperator
+            operator = "ElastoDynamicsOperator"
 
+    assert operator is not None, "Failed to define operator!"
+    op = locals()[operator](**kwargs)
+
+    #
+    # End of operator definition
+    #
 
     discr = rcon.make_discretization(mesh_data, order=order, debug=debug,tune_for=op.op_template())
 
@@ -338,7 +359,7 @@ def main(write_output=True, allow_features='mpi', dim = 2, linear = True,
         rhs = op.bind(discr, coefficients)
     else:
         rhs = op.bind(discr)
-    
+
     t=0.0
     max_txt = ''
     try:
