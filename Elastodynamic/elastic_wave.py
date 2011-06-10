@@ -56,6 +56,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     nonlinearity_type: None (linear) or 'classical' (non-linear)
     """
 
+    from os import access, makedirs, chdir, F_OK
     from math import exp
     from libraries.materials import Material
     from hedge.backends import guess_run_context
@@ -68,9 +69,8 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     elif allow_features == 'mpi':
         dtype = numpy.float64
 
-    import os
-    if output_dir and not os.access(output_dir, os.F_OK):
-        os.makedirs(output_dir)
+    if rcon.is_head_rank and output_dir and not access(output_dir, F_OK):
+        makedirs(output_dir)
 
     if quiet_output:
         print_output = rcon.is_head_rank
@@ -323,7 +323,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
             add_run_info
 
     if output_dir:
-        os.chdir(output_dir)
+        chdir(output_dir)
 
     if write_output:
         log_file_name = 'elastic_wave.dat'
@@ -360,7 +360,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     else:
         rhs = op.bind(discr)
 
-    t=0.0
+    t = 0.0
     max_txt = ''
     try:
         from hedge.timestep import times_and_steps
@@ -374,36 +374,38 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
                 max_txt = ' on ' + format(max_steps)
                 if step > max_steps:
                     break
-            if step % 20 == 0 and write_output:
-                visf = vis.make_file("fld-%04d" % step)
+
+            if step % 20 == 0:
                 if print_output:
                     print 'Step ' + format(step) + max_txt
 
-                variables = [
-                        ("v", discr.convert_volume(fields[0:dim], "numpy")),
-                        ("F", discr.convert_volume(fields[dim:dim+op.dimF[dim]], "numpy")) ]
-                if pml:
-                    f2 = ("F2", discr.convert_volume(fields[dim+op.dimF[dim]:dim+op.dimF[dim]+dim*dim*2], "numpy"))
-                    variables.append(f2)
-                vis.add_data(visf, variables, time=t, step=step)
-                visf.close()
+                if write_output:
+                    visf = vis.make_file("fld-%04d" % step)
+                    variables = [("v", discr.convert_volume(fields[0:dim], "numpy")),
+                                 ("F", discr.convert_volume(fields[dim:dim+op.dimF[dim]], "numpy"))]
+                    if pml:
+                        f2 = ("F2", discr.convert_volume(fields[dim+op.dimF[dim]:dim+op.dimF[dim]+dim*dim*2], "numpy"))
+                        variables.append(f2)
+                    vis.add_data(visf, variables, time=t, step=step)
+                    visf.close()
+
+            if write_output:
+                for point_receiver in point_receivers:
+                    val = point_receiver.evaluator(fields)
+                    buffer = ""
+                    if not point_receiver.done_dt:
+                        buffer += "# dt: %g s\n" % dt
+                        buffer += "# v: %d fields\n" % dim
+                        buffer += "# F: %d fields\n" % op.dimF[dim]
+                        if pml:
+                            buffer += "# F2: %d fields\n" % (dim*dim*2)
+                        buffer += "# Coordinates: %s\n" % repr(point_receiver.coordinates)
+                        point_receiver.done_dt = True
+                    buffer += "%s\n" % str(val)
+                    point_receiver.pointfile.write(buffer)
 
             fields = stepper(fields, t, dt, rhs)
             #fields = mode_filter(fields)
-            for point_receiver in point_receivers:
-                val = point_receiver.evaluator(fields)
-                buffer = ""
-                if not point_receiver.done_dt:
-                    buffer += "# dt: %g s\n" % dt
-                    buffer += "# v: %d fields\n" % dim
-                    buffer += "# F: %d fields\n" % (len(fields)-dim)
-                    buffer += "# Coordinates: %s\n" % repr(point_receiver.coordinates)
-                    point_receiver.done_dt = True
-                buffer += "%s\n" % str(val)
-                point_receiver.pointfile.write(buffer)
-
-        assert discr.norm(fields) < 1
-        assert fields[0].dtype == dtype
 
     finally:
         if write_output:
@@ -414,7 +416,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
         logmgr.close()
         discr.close()
         if output_dir:
-            os.chdir('..')
+            chdir('..')
 
 if __name__ == "__main__":
     main()
