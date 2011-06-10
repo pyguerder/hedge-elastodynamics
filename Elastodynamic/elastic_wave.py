@@ -30,10 +30,10 @@ from hedge.mesh.reader.gmsh import read_gmsh
 
 
 def main(write_output=True, allow_features='mpi', dim=2, order=4,
-         stfree_tag=TAG_ALL, fix_tag=TAG_NONE, op_tag=TAG_NONE,
+         stfree_tag=TAG_NONE, fix_tag=TAG_ALL, op_tag=TAG_NONE,
          flux_type_arg="lf", debug=[], dtype=numpy.float64,
          max_steps=None, output_dir='output', pml=True,
-         override_mesh_sources=False, final_time=2.0, quiet_output=True,
+         override_mesh_sources=False, final_time=12.0, quiet_output=True,
          nonlinearity_type=None):
     """
     Parameters:
@@ -97,7 +97,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     elif dim == 2:
         #periodicity= [('minus_x','plus_x'), None]
         periodicity= [None, None]
-        mesh_file = 'Meshes/HeterogeneousPeriodicSquare.msh'
+        mesh_file = 'Meshes/HeterogenPeriodicSquarePML.msh'
         mesh = read_gmsh(mesh_file,
                          force_dimension=2,
                          periodicity=periodicity,
@@ -353,9 +353,9 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     # timestep loop -----------------------------------------------------------
     if pml:
         # widths: [x_l, y_l, z_l, x_r, y_r, z_r]
-        pml_widths = [0, 400, 0, 0, 400, 0]
+        pml_widths = [400, 400, 0, 400, 400, 0]
         coefficients = op.coefficients_from_width(discr, mesh,
-                            widths=pml_widths, material=material1)
+                            widths=pml_widths, material=material1, alpha_magnitude=2*pi*0.7)
         rhs = op.bind(discr, coefficients)
     else:
         rhs = op.bind(discr)
