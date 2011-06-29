@@ -40,6 +40,7 @@ class GmshReader:
 
         self.tag_name_map = {}
         self.points_map = {}
+        self.lines_map = {}
         self.surfaces_map = {}
         self.nodes_map = {}
 
@@ -49,6 +50,7 @@ class GmshReader:
 
         self.pointReceivers = self.Get_Points('PointReceiver')
         self.pointSources = self.Get_Points('PointSource')
+        self.internalBoundaries = self.Get_Lines('MyLine')
         self.materials = \
             { 'mat1' : self.Get_Surfaces('mat1'), 
               'mat2' : self.Get_Surfaces('mat2') }
@@ -150,6 +152,26 @@ class GmshReader:
                 elif number_of_tags == 0:
                     physical_surface = int(values[3])
                     self.surfaces_map[number, None] = node_number_list
+            elif type == 1:
+                number_of_tags = int(values[2])
+                if number_of_tags == 3:
+                    physical_line = int(values[3])
+                    # geometrical_entity = int(values[4])
+                    # mesh_partition = int(values[5])
+                    node_number_list = int(values[6])
+                    self.lines_map[number, physical_line] = node_number_list
+                elif number_of_tags == 2:
+                    physical_line = int(values[3])
+                    # geometrical_entity = int(values[4])
+                    node_number_list = int(values[5])
+                    self.lines_map[number, physical_line] = node_number_list
+                elif number_of_tags == 1:
+                    physical_line = int(values[3])
+                    node_number_list = int(values[4])
+                    self.lines_map[number, physical_line] = node_number_list
+                elif number_of_tags == 0:
+                    physical_line = int(values[3])
+                    self.lines_map[number, None] = node_number_list
             name_idx +=1
 
         if name_count+1 != name_idx:
@@ -208,6 +230,15 @@ class GmshReader:
         else:
             if self.print_output:
                 print "No " + tag_name + " in this file"
+
+    def Get_Lines(self, tag_name):
+        tag_id = self.Get_TagId(tag_name)
+        if tag_id:
+            elements = [k1 for (k1, k2), _ in self.lines_map.iteritems() if k2 == tag_id]
+            return elements
+        else:
+            if self.print_output:
+                print "No " + tag_name + " in this file"
     
     def Get_Surfaces(self, tag_name):
         tag_id = self.Get_TagId(tag_name)
@@ -218,7 +249,8 @@ class GmshReader:
             if self.print_output:
                 print "No " + tag_name + " in this file"
 
-#myGmsh = GmshReader('../Meshes/Lamb2DRect.msh', 2)
+#myGmsh = GmshReader('../Meshes/SquareIntBound.msh', 2, True)
 #print 'PointReceiver:', myGmsh.pointReceivers
 #print 'PointSource:', myGmsh.pointSources
 #print 'Materials:', myGmsh.materials
+#print 'Line:', myGmsh.internalBoundaries

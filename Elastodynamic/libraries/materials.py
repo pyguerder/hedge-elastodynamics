@@ -46,13 +46,16 @@ class Material:
         self.mu = self.Read_FloatValue('Permeability')
         
         # Read the permittivity
-        self.epsilon = self.Read_FloatValue('Permittivity')
+        self.epsilon = self.Read_Matrix('Permittivity', 3, 3)
         
         # Read the non linearity type
         self.nonlinearity_type = self.Read_TextValue('NonlinearityType')
         
         # Read the linear elastic constants
-        self.C, self.elastic_type = self.Read_Matrix('LinearElasticConstants')
+        self.C, self.elastic_type = self.Read_SymMatrix('LinearElasticConstants')
+
+        # Read the linear elastic constants
+        self.e = self.Read_Matrix('PiezoElectricConstants', 3, 6)
         
         # Read the nonlinear elastic constants
         self.Cnl = self.Read_Tensor('NonlinearElasticConstants')
@@ -96,7 +99,7 @@ class Material:
         return Cnl
     
     # Read a symmetric 6×6 matrix
-    def Read_Matrix(self, name):
+    def Read_SymMatrix(self, name):
         self.file.seek(0, 0)
 
         # Initialize the C matrix
@@ -137,7 +140,33 @@ class Material:
         if (self.file.readline() != '$End' + name + '\n') and self.print_output:
             print self.filename, 'has an invalid', name, 'section.'
         return C, elastic_type
+
+    # Read a matrix
+    def Read_Matrix(self, name, lines, rows):
+        self.file.seek(0, 0)
+
+        # Initialize the matrix
+        M = numpy.zeros((lines, rows), self.dtype)
+
+        myline = self.file.readline()
+        while ( myline != "" and myline != '$' + name +'\n' ):
+            myline = self.file.readline()
     
+        try:
+            for i in range(lines):
+                myline = self.file.readline()
+                myline.strip()
+                elements = myline.split()
+                for j in range(rows):
+                    M[i, j] = float(elements[j])
+        except:
+            if self.print_output:
+                print self.filename, 'contains no valid', name, 'section.'
+            return None
+        if (self.file.readline() != '$End' + name + '\n') and self.print_output:
+            print self.filename, 'has an invalid', name, 'section.'
+        return M
+
     def Read_TextValue(self, name):
         self.file.seek(0, 0)
         myline = self.file.readline()
@@ -161,14 +190,16 @@ class Material:
             return None
         return value
 
-#myMaterial = Material('Materials/aluminium.dat', numpy.float64)
+#myMaterial = Material('../Materials/calcite.dat', numpy.float64, True)
 #print "Rho:", myMaterial.rho
 #print "Mu:", myMaterial.mu
 #print "Epsilon:", myMaterial.epsilon
 #print "C:", myMaterial.C
 #print "Elastic type:", myMaterial.elastic_type
 #print "NonLinearity type:", myMaterial.nonlinearity_type
-#myMaterial = Material('Materials/test.dat', numpy.float64)
+#print "Permittivity:", myMaterial.epsilon
+#print "PiezoElectricConstants:", myMaterial.e
+#myMaterial = Material('Materials/test.dat', numpy.float64, True)
 #print "Rho:", myMaterial.rho
 #print "Mu:", myMaterial.mu
 #print "Epsilon:", myMaterial.epsilon

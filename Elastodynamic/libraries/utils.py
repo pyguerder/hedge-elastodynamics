@@ -40,8 +40,11 @@ class Utils:
                     [6, 2, 4],
                     [5, 4, 3]
                     ])
+    cond_2D = numpy.array([[0, 1, 5],
+                           [0, 1, 5]])
 
-
+    # Expands a symmetric matrix
+    # e.g.: 6×6->9×9
     def convert_dim(C, dim):
 
         conv = numpy.zeros(dim**2, dtype=int)
@@ -72,6 +75,16 @@ class Utils:
                 Ceq[i,j] = C[conv[i]-1,conv[j]-1]
         return Ceq
 
+    # Reduces the size of the square matrix M to dim
+    # e.g.: 3×3 -> 2×2
+    # Takes (1, 1) (1, 2) (2, 1) (2, 2)
+    def reduce_dim(M, dim):
+        M2 = numpy.zeros((dim, dim), dtype=M.dtype)
+        for i in range(dim):
+            for j in range(dim):
+                M2[i, j] = M[i, j]
+        return M2
+
     def condense(i, j, dim):
         if dim == 1:
             return 1
@@ -88,6 +101,20 @@ class Utils:
         elif dim == 3:
             return Utils.conv_3D_sym[i, j]
 
+    def condense_3x6matrix(M, dim):
+        if dim == 1:
+            res = numpy.zeros((1, 1), dtype=M.dtype)
+            res[0, 0] = M[0, 0]
+            return res
+        elif dim == 2:
+            res = numpy.zeros((2, 3), dtype=M.dtype)
+            for i in range(2):
+                for j in range(3):
+                    res[i][j] = M[i, Utils.cond_2D[i][j]]
+            return res
+        elif dim == 3:
+            return M
+
     def kronecker(i, j):
         if i == j :
             return 1
@@ -95,6 +122,8 @@ class Utils:
             return 0
 
     convert_dim = staticmethod(convert_dim)
+    reduce_dim = staticmethod(reduce_dim)
     kronecker = staticmethod(kronecker)
     condense = staticmethod(condense)
     condense_sym = staticmethod(condense_sym)
+    condense_3x6matrix = staticmethod(condense_3x6matrix)

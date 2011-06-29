@@ -26,7 +26,6 @@ along with this program.  If not, see U{http://www.gnu.org/licenses/}.
 
 import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
-from hedge.mesh.reader.gmsh import read_gmsh
 
 
 def main(write_output=True, allow_features='mpi', dim=2, order=4,
@@ -57,9 +56,11 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     """
 
     from os import access, makedirs, chdir, F_OK
-    from math import exp
+    from math import exp, sin, cos, pi
     from libraries.materials import Material
     from hedge.backends import guess_run_context
+    from hedge.mesh.reader.gmsh import read_gmsh
+
     rcon = guess_run_context(allow_features)
     rcon_init = guess_run_context(allow_features)
 
@@ -84,9 +85,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     class Receiver():
         pass
 
-    #
-    # Define mesh
-    #
+    # Define mesh ---
 
     mesh_file = ''
 
@@ -97,11 +96,11 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     elif dim == 2:
         #periodicity= [('minus_x','plus_x'), None]
         periodicity= [None, None]
-        mesh_file = 'Meshes/HeterogenPeriodicSquarePML.msh'
+        mesh_file = 'Meshes/HeterogeneousPeriodicSquare.msh'
         mesh = read_gmsh(mesh_file,
                          force_dimension=2,
                          periodicity=periodicity,
-                         allow_internal_boundaries=False,
+                         allow_internal_boundaries=True,
                          tag_mapper=lambda tag:tag)
     elif dim == 3:
         #periodicity= [('minus_x','plus_x'), ('minus_y','plus_y'), ('minus_z','plus_z')]
@@ -123,19 +122,16 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
         mesh_data = rcon.receive_mesh()
         mesh_init = rcon_init.receive_mesh()
 
-    #
-    # End of mesh definition
-    #
+    if mesh_file:
+        from libraries.gmsh_reader import GmshReader
+        gmsh = GmshReader(mesh_file, dim, print_output)
 
-    #
-    # Define sources
-    #
+    # End of mesh definition ---
+    # Define sources ---
 
     source = None
     sources = None
     if mesh_file:
-        from libraries.gmsh_reader import GmshReader
-        gmsh = GmshReader(mesh_file, dim, print_output)
         sources = gmsh.pointSources
     if sources and not override_mesh_sources:
         #FIXME: Multiple source points are currently unsupported
@@ -149,8 +145,6 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
             source = numpy.array([0.0,0.0,0.0])
         if print_output:
             print "Using default source position,", source
-
-    from math import sin, cos, pi
 
     def source_v_x(x, el):
         x = x - source
@@ -181,13 +175,8 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
                 'source_y' : source_y,
                 'source_z' : source_z }
 
-    #
-    # End of sources definition
-    #
-
-    #
-    # Define materials and link them with elements
-    #
+    # End of sources definition ---
+    # Define materials and link them with elements ---
 
     material1 = Material('Materials/aluminium.dat', dtype, print_output)
     material2 = Material('Materials/calcite.dat', dtype, print_output)
@@ -226,13 +215,8 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
             return 1
         return 0
 
-    #
-    # End of materials definition
-    #
-
-    #
-    # Define the operator
-    #
+    # End of materials definition ---
+    # Define the elastodynamics operator ---
 
     kwargs = {
               'dimensions': dim,
@@ -267,17 +251,18 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     assert operator is not None, "Failed to define operator!"
     op = locals()[operator](**kwargs)
 
-    #
-    # End of operator definition
-    #
+    # End of elastodynamics operator definition ---
+    # Define discretization ---
 
     discr = rcon.make_discretization(mesh_data, order=order, debug=debug,tune_for=op.op_template())
+
+    # End of discretization definition ---
+    # Define receivers ---
 
     receivers = None
     point_receivers = []
     i = 0
     if mesh_file:
-        gmsh = GmshReader(mesh_file, dim, print_output)
         receivers = gmsh.pointReceivers
     if receivers is not None:
         for receiver in receivers:
@@ -296,27 +281,46 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
                 if print_output:
                     print "Add receiver %d:" % i, receiver
 
+    # End of receivers definition ---
+    # Define timestepping and fields ---
+
     from hedge.timestep import LSRK4TimeStepper
     stepper = LSRK4TimeStepper(dtype=dtype)
+
+    fields = None
+    
+    def v():
+        if fields is not None:
+            return fields[0:dim]
+        return [discr.volume_zeros(dtype=dtype) for _ in range(dim)]
+    
+    def f():
+        if fields is not None:
+            return fields[dim:dim+op.dimF[dim]]
+        return [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])]
+    
+    def f2():
+        if fields is not None:
+            return fields[dim+op.dimF[dim]:dim+op.dimF[dim]+dim*dim*2]
+        return [discr.volume_zeros(dtype=dtype) for _ in range(dim*dim*2)]
+
+    fields_list = [v(), f()]
+    if pml:
+        fields_list.append(f2())
+
+    from hedge.tools import join_fields
+    fields = join_fields(*fields_list)
+
+    #from hedge.discretization import Filter, ExponentialFilterResponseFunction
+    #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=order))
+
+    # End of timestepping and fields definition ---
+    # Define visualization ---
 
     from hedge.visualization import VtkVisualizer
     if write_output:
         vis = VtkVisualizer(discr, rcon, 'fld')
 
-    from hedge.tools import join_fields
-    dim = discr.dimensions
-    if pml:
-        fields = join_fields([discr.volume_zeros(dtype=dtype) for _ in range(dim)],
-                             [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])],
-                             [discr.volume_zeros(dtype=dtype) for _ in range(dim*dim*2)])
-    else:
-        fields = join_fields([discr.volume_zeros(dtype=dtype) for _ in range(dim)],
-                             [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])])
-
-    #from hedge.discretization import Filter, ExponentialFilterResponseFunction
-    #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=order))
-
-    # diagnostics setup -------------------------------------------------------
     from pytools.log import LogManager, \
             add_general_quantities, \
             add_simulation_quantities, \
@@ -350,7 +354,9 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
 
     logmgr.add_watches(["step.max", "t_sim.max", "l2_u", "t_step.max"])
 
-    # timestep loop -----------------------------------------------------------
+    # End of visualization definition ---
+    # Bind the operator to the discretization ---
+
     if pml:
         # widths: [x_l, y_l, z_l, x_r, y_r, z_r]
         pml_widths = [400, 400, 0, 400, 400, 0]
@@ -359,6 +365,9 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
         rhs = op.bind(discr, coefficients)
     else:
         rhs = op.bind(discr)
+
+    # End of operator binding ---
+    # Define the timestep loop ---
 
     t = 0.0
     max_txt = ''
@@ -381,11 +390,11 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
 
                 if write_output:
                     visf = vis.make_file("fld-%04d" % step)
-                    variables = [("v", discr.convert_volume(fields[0:dim], "numpy")),
-                                 ("F", discr.convert_volume(fields[dim:dim+op.dimF[dim]], "numpy"))]
+                    variables = [("v", discr.convert_volume(v(), "numpy")),
+                                 ("F", discr.convert_volume(f(), "numpy"))]
                     if pml:
-                        f2 = ("F2", discr.convert_volume(fields[dim+op.dimF[dim]:dim+op.dimF[dim]+dim*dim*2], "numpy"))
-                        variables.append(f2)
+                        f_2 = ("F2", discr.convert_volume(f2(), "numpy"))
+                        variables.append(f_2)
                     vis.add_data(visf, variables, time=t, step=step)
                     visf.close()
 
@@ -400,8 +409,19 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
                         if pml:
                             buffer += "# F2: %d fields\n" % (dim*dim*2)
                         buffer += "# Coordinates: %s\n" % repr(point_receiver.coordinates)
+                        buffer += 't '
+                        for i in range(dim):
+                            buffer += 'v%s ' % i
+                        for i in range(op.dimF[dim]):
+                            buffer += "F%s " % i
+                        if pml:
+                            for i in range(dim*dim*2):
+                                buffer += "F''%s " % i
                         point_receiver.done_dt = True
-                    buffer += "%s\n" % str(val)
+                    buffer += "\n%s " % format(t)
+                    for i in range(len(val)):
+                        buffer += "%s " % format(val[i])
+                    buffer += '\n'
                     point_receiver.pointfile.write(buffer)
 
             fields = stepper(fields, t, dt, rhs)
@@ -417,6 +437,8 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
         discr.close()
         if output_dir:
             chdir('..')
+            
+    # End ---
 
 if __name__ == "__main__":
     main()
