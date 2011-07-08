@@ -1,16 +1,18 @@
-TODO:
+; Questions
 * Dans Hedge, comment utiliser une liste de valeurs comme source ? (voir make_tdep_given et adapter pour avoir la même sortie que TimeIntervalGivenFunction)
-	-> voir volume_interpolant et éventuellement linéariser entre deux points du tableau de temps
+  -> voir volume_interpolant et éventuellement linéariser entre deux points du tableau de temps
 * Dans Gmsh, comment tagger une interface entre 2 éléments ? (ligne ou surface)
 
 ; Tests
 * Faire tourner le programme sur des cas physiques connus
 
 ; Ajouts
-* Réparer la saturation des PML
 * Réparer le problème CUDA nécessitant peut-être un Context.pop()
-* Réparer les saturations aux frontières en MPI (périodique, linéaire et non linéaire)
+  -> en attente d'une évolution de Hedge/pyCuda car les exemples ne fonctionnnent plus
+* Permettre d'introduire des discontinuités dans le maillage (*interface* tagguée comme une frontière) (utiliser un tag pour un flux numérique de volume : choisir un type de flux à une *interface* donnée)
 * Regarder l'utilisation de bind_interdomains dans models/advection
 * Utiliser une liste de valeurs comme source (éventuellement avec un retournement temporel)
 * Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
 * Introduire les pertes thermovisqueuses (cf. tools_second order)
+* Introduire la piézoélectricité (ajout de l'équation de Poisson pour calculer le flux)
+* Permettre aux matériaux d'avoir des orientations différentes, en appliquant des rotations aux matrices (voir la bibliothèque Python Mathutils pour une implémentation des angles d'Euler)
