@@ -3,26 +3,11 @@
 
 from __future__ import division
 
-__copyright__ = """
-Copyright (C) 2010-2011:
-* Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>
-* Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>
-"""
+__authors__ = ["Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>",
+               "Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>"]
+__copyright__ = "Copyright (C) 2010-2011 the authors"
+__license__ = "GNU GPLv3 (or more recent equivalent)"
 
-__license__ = """
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see U{http://www.gnu.org/licenses/}.
-"""
 
 import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
@@ -30,29 +15,29 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 
 def main(write_output=True, allow_features='mpi', dim=2, order=4,
          stfree_tag=TAG_NONE, fix_tag=TAG_ALL, op_tag=TAG_NONE,
-         flux_type_arg="lf", debug=[], dtype=numpy.float64,
+         flux_type="lf", debug=[], dtype=numpy.float64,
          max_steps=None, output_dir='output', pml=True,
-         override_mesh_sources=False, final_time=12.0, quiet_output=True,
+         override_mesh_sources=False, final_time=12, quiet_output=True,
          nonlinearity_type=None):
     """
     Parameters:
-    write_output: whether to write (True) visualization files or not (False)
-    allow_features: 'mpi' or 'cuda'
-    dim: 1, 2 or 3
-    order: the order of the method
-    stfree_tag: which elements to mark as stress-free boundaries
-    fix_tag: which elements to mark as fixed boundaries
-    op_tag: which elements to mark as open boundaries
-    flux_type: 'lf' (Lax-Freidrich flux) or 'central'
-    debug: debug parameters to use in make_discretization()
-    dtype: defaults to float64, automatically reduced to float32 for cuda
-    max_steps: None (no limit) or maximum number of steps to compute
-    output_dir: directory where to write the output
-    pml: True or False, to enable or disable the NPML
-    override_mesh_sources: if True, ignores the source points of the mesh file
-    final_time: number of seconds of simulations to compute
-    quiet_output: if True, only the main thread will print information
-    nonlinearity_type: None (linear) or 'classical' (non-linear)
+    @param write_output: whether to write (True) visualization files or not (False)
+    @param allow_features: 'mpi' or 'cuda'
+    @param dim: 1, 2 or 3
+    @param order: the order of the method
+    @param stfree_tag: which elements to mark as stress-free boundaries
+    @param fix_tag: which elements to mark as fixed boundaries
+    @param op_tag: which elements to mark as open boundaries
+    @param flux_type: 'lf' (Lax-Freidrich flux) or 'central'
+    @param debug: debug parameters to use in make_discretization()
+    @param dtype: defaults to float64, automatically reduced to float32 for cuda
+    @param max_steps: None (no limit) or maximum number of steps to compute
+    @param output_dir: directory where to write the output
+    @param pml: True or False, to enable or disable the NPML
+    @param override_mesh_sources: if True, ignores the source points of the mesh file
+    @param final_time: number of seconds of simulations to compute
+    @param quiet_output: if True, only the main thread will print information
+    @param nonlinearity_type: None (linear) or 'classical' (non-linear)
     """
 
     from os import access, makedirs, chdir, F_OK
@@ -100,7 +85,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
         mesh = read_gmsh(mesh_file,
                          force_dimension=2,
                          periodicity=periodicity,
-                         allow_internal_boundaries=True,
+                         allow_internal_boundaries=False,
                          tag_mapper=lambda tag:tag)
     elif dim == 3:
         #periodicity= [('minus_x','plus_x'), ('minus_y','plus_y'), ('minus_z','plus_z')]
@@ -148,15 +133,15 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
 
     def source_v_x(x, el):
         x = x - source
-        return exp(-numpy.dot(x, x)*0.01)*sin(10*pi/180)
+        return 0
 
     def source_v_y(y, el):
         y = y - source
-        return exp(-numpy.dot(y, y)*0.01)*cos(10*pi/180)
+        return exp(-numpy.dot(y, y)*0.01)  # cos(10*pi/180)
 
     def source_v_z(z, el):
         z = z - source
-        return exp(-numpy.dot(z, z)*0.01)
+        return 0
 
     from libraries.functions import TimeRickerWaveletGivenFunction
     from hedge.data import make_tdep_given, TimeIntervalGivenFunction
@@ -228,7 +213,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
                       'fixed' : fix_tag,
                       'open' : op_tag },
               'materials': materials,
-              'flux_type': flux_type_arg
+              'flux_type': flux_type
               }
 
     operator = None
@@ -350,7 +335,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     from hedge.log import LpNorm
     u_getter = lambda: fields[0]
     logmgr.add_quantity(LpNorm(u_getter, discr, 1, name="l1_u"))
-    logmgr.add_quantity(LpNorm(u_getter, discr, name="l2_u"))
+    logmgr.add_quantity(LpNorm(u_getter, discr, 1, name="l2_u"))
 
     logmgr.add_watches(["step.max", "t_sim.max", "l2_u", "t_step.max"])
 

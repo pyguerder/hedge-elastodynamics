@@ -24,6 +24,8 @@ import sys
 
 class GmshReader:
     def __init__(self, filename, dim, print_output):
+        self.filename = filename
+
         # open file
         try:
             self.file = open (filename, 'r')
@@ -52,8 +54,8 @@ class GmshReader:
         self.pointSources = self.Get_Points('PointSource')
         self.internalBoundaries = self.Get_Lines('MyLine')
         self.materials = \
-            { 'mat1' : self.Get_Surfaces('mat1'), 
-              'mat2' : self.Get_Surfaces('mat2') }
+            {'mat1' : self.Get_Surfaces('mat1'), 
+             'mat2' : self.Get_Surfaces('mat2')}
 
         # close file
         self.file.close()
@@ -66,7 +68,7 @@ class GmshReader:
 
         if myline == '':
             if self.print_output:
-                print 'This file contains no PhysicalName'
+                print self.filename, 'contains no PhysicalName'
             return
 
         myline = self.file.readline()
@@ -229,7 +231,7 @@ class GmshReader:
             return nodes
         else:
             if self.print_output:
-                print "No " + tag_name + " in this file"
+                print self.filename, 'contains no', tag_name
 
     def Get_Lines(self, tag_name):
         tag_id = self.Get_TagId(tag_name)
@@ -238,7 +240,7 @@ class GmshReader:
             return elements
         else:
             if self.print_output:
-                print "No " + tag_name + " in this file"
+                print self.filename, 'contains no', tag_name
     
     def Get_Surfaces(self, tag_name):
         tag_id = self.Get_TagId(tag_name)
@@ -247,7 +249,7 @@ class GmshReader:
             return elements
         else:
             if self.print_output:
-                print "No " + tag_name + " in this file"
+                print self.filename, 'contains no', tag_name
 
 #myGmsh = GmshReader('../Meshes/SquareIntBound.msh', 2, True)
 #print 'PointReceiver:', myGmsh.pointReceivers

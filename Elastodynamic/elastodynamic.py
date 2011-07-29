@@ -3,26 +3,10 @@
 
 from __future__ import division
 
-__copyright__ = """
-Copyright (C) 2010-2011:
-* Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>
-* Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>
-"""
-
-__license__ = """
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see U{http://www.gnu.org/licenses/}.
-"""
+__authors__ = ["Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>",
+               "Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>"]
+__copyright__ = "Copyright (C) 2010-2011 the authors"
+__license__ = "GNU GPLv3 (or more recent equivalent)"
 
 
 import numpy
@@ -32,7 +16,8 @@ from libraries.utils import Utils
 from pymbolic.primitives import IfPositive
 
 class ElastoDynamicsOperator(HyperbolicOperator):
-    """An nD linear Elastodynamics operator.
+    """
+    An nD linear Elastodynamics operator.
 
     dq/dt - dF/dx - dG/dy - dH/dz = 0
 
@@ -63,11 +48,11 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                  flux_type = "lf",
                  ):
         """
-        :param sources: should be a table of functions
+        @param sources: should be a table of functions
         that implement
         class:`hedge.data.IFieldDependentGivenFunction`
         or be None.
-        :param materials: should be a list
+        @param materials: should be a list
         of instances of libraries.materials.Material
         """
         from hedge.data import make_tdep_constant
@@ -381,11 +366,11 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
                  flux_type = "lf",
                  ):
         """
-        :param sources: should be a table of functions
+        @param sources: should be a table of functions
         that implement
         class:`hedge.data.IFieldDependentGivenFunction`
         or be None.
-        :param materials: should be a list
+        @param materials: should be a list
         of instances of libraries.materials.Material
         """
         from hedge.data import make_tdep_constant
@@ -948,7 +933,8 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                 sigma_exponent, alpha_exponent, kappa_exponent, dtype)
 
 class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsOperator):
-    """Implements NL NPML, based on the 2 previous classes
+    """
+    Implements NL NPML, based on the 2 previous classes
     """
 
     def __init__(self, *args, **kwargs):

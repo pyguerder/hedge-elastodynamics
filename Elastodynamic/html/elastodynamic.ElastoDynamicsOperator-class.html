@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="ascii"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <title>elastodynamic.ElastoDynamicsOperator</title>
+  <link rel="stylesheet" href="epydoc.css" type="text/css" />
+  <script type="text/javascript" src="epydoc.js"></script>
+</head>
+
+<body bgcolor="white" text="black" link="blue" vlink="#204080"
+      alink="#204080">
+<!-- ==================== NAVIGATION BAR ==================== -->
+<table class="navbar" border="0" width="100%" cellpadding="0"
+       bgcolor="#a0c0ff" cellspacing="0">
+  <tr valign="middle">
+
+  <!-- Tree link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="module-tree.html">Trees</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Index link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="identifier-index.html">Indices</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Help link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="help.html">Help</a>&nbsp;&nbsp;&nbsp;</th>
+
+      <th class="navbar" width="100%"></th>
+  </tr>
+</table>
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr valign="top">
+    <td width="100%">
+      <span class="breadcrumbs">
+        <a href="elastodynamic-module.html">Module&nbsp;elastodynamic</a> ::
+        Class&nbsp;ElastoDynamicsOperator
+      </span>
+    </td>
+    <td>
+      <table cellpadding="0" cellspacing="0">
+        <!-- hide/show private -->
+        <tr><td align="right"><span class="options">[<a href="javascript:void(0);" class="privatelink"
+    onclick="toggle_private();">hide&nbsp;private</a>]</span></td></tr>
+        <tr><td align="right"><span class="options"
+            >[<a href="frames.html" target="_top">frames</a
+            >]&nbsp;|&nbsp;<a href="elastodynamic.ElastoDynamicsOperator-class.html"
+            target="_top">no&nbsp;frames</a>]</span></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<!-- ==================== CLASS DESCRIPTION ==================== -->
+<h1 class="epydoc">Class ElastoDynamicsOperator</h1><p class="nomargin-top"><span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator">source&nbsp;code</a></span></p>
+<center>
+<center>  <map id="uml_class_diagram_for_elastody" name="uml_class_diagram_for_elastody">
+<area shape="rect" id="node1" href="elastodynamic.NLNPMLElastoDynamicsOperator-class.html" title="Implements NL NPML, based on the 2 previous classes" alt="" coords="407,545,649,583"/>
+<area shape="rect" id="node2" href="elastodynamic.NLElastoDynamicsOperator-class.html" title="An nD non linear Elastodynamics operator." alt="" coords="303,486,508,525"/>
+<area shape="rect" id="node1" href="javascript:void(0);" title="Estimate the largest stable timestep, given a time stepper `stepper_class`." alt="" coords="192,103,863,121"/>
+<area shape="rect" id="node3" href="javascript:void(0);" title="A base class for hyperbolic Discontinuous Galerkin operators." alt="" coords="180,70,873,127"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#__init__" title="x.__init__(...) initializes x; see x.__class__.__doc__ for signature" alt="" coords="17,180,1039,199"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#rho_v" title="elastodynamic.ElastoDynamicsOperator.rho_v" alt="" coords="17,199,1039,217"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#F" title="elastodynamic.ElastoDynamicsOperator.F" alt="" coords="17,217,1039,236"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#q" title="elastodynamic.ElastoDynamicsOperator.q" alt="" coords="17,236,1039,255"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#mat" title="elastodynamic.ElastoDynamicsOperator.mat" alt="" coords="17,255,1039,273"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#v" title="elastodynamic.ElastoDynamicsOperator.v" alt="" coords="17,273,1039,292"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#P" title="elastodynamic.ElastoDynamicsOperator.P" alt="" coords="17,292,1039,311"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#flux_num" title="elastodynamic.ElastoDynamicsOperator.flux_num" alt="" coords="17,311,1039,329"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#flux" title="elastodynamic.ElastoDynamicsOperator.flux" alt="" coords="17,329,1039,348"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#bdry_flux" title="elastodynamic.ElastoDynamicsOperator.bdry_flux" alt="" coords="17,348,1039,367"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#add_sources" title="elastodynamic.ElastoDynamicsOperator.add_sources" alt="" coords="17,367,1039,385"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#bind_sources" title="elastodynamic.ElastoDynamicsOperator.bind_sources" alt="" coords="17,385,1039,404"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#op_template" title="elastodynamic.ElastoDynamicsOperator.op_template" alt="" coords="17,404,1039,423"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#bind" title="elastodynamic.ElastoDynamicsOperator.bind" alt="" coords="17,423,1039,441"/>
+<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#max_eigenvalue" title="elastodynamic.ElastoDynamicsOperator.max_eigenvalue" alt="" coords="17,441,1039,460"/>
+<area shape="rect" id="node4" href="elastodynamic.ElastoDynamicsOperator-class.html" title="An nD linear Elastodynamics operator." alt="" coords="5,147,1051,466"/>
+<area shape="rect" id="node5" href="elastodynamic.NPMLElastoDynamicsOperator-class.html" title="Implements a NPML as in" alt="" coords="537,486,764,525"/>
+<area shape="rect" id="node6" href="javascript:void(0);" title="A base class for Discontinuous Galerkin operators." alt="" coords="443,6,613,50"/>
+</map>
+  <img src="uml_class_diagram_for_elastody.gif" alt='' usemap="#uml_class_diagram_for_elastody" ismap="ismap" class="graph-without-title" />
+</center>
+</center>
+<hr />
+<p>An nD linear Elastodynamics operator.</p>
+  <p>dq/dt - dF/dx - dG/dy - dH/dz = 0</p>
+  <p>where e.g. in 3D</p>
+  <p>q = (rho_v_1, rho_v_2, rho_v_3, F_11, F_22, F_33, 2*F_23, 2*F_13, 
+  2*F_12) F = (P_11, P_12, P_13, v_1, 0, 0, 0, v_3, v_2) G = (P_12, P_22, 
+  P_23, 0, v_2, 0, v_3, 0, v_1) H = (P_13, P_23, P_33, 0, 0, v_3, v_2, v_1,
+  0)</p>
+  <p>For the linear case with included attenuation the stress-strain 
+  relation is given by</p>
+  <p>P_ij = C_ijkl * F_kl + nu_ijkl * dv_k/dx_l</p>
+  <p>Field order is [rho_v_1, rho_v_2, rho_v_3, F_11, F_22, F_33, 2*F_23, 
+  2*F_13, 2*F_12].</p>
+
+<!-- ==================== INSTANCE METHODS ==================== -->
+<a name="section-InstanceMethods"></a>
+<table class="summary" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr bgcolor="#70b0f0" class="table-header">
+  <td colspan="2" class="table-header">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr valign="top">
+        <td align="left"><span class="table-header">Instance Methods</span></td>
+        <td align="right" valign="top"
+         ><span class="options">[<a href="#section-InstanceMethods"
+         class="privatelink" onclick="toggle_private();"
+         >hide private</a>]</span></td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="elastodynamic.ElastoDynamicsOperator-class.html#__init__" class="summary-sig-name">__init__</a>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">dimensions</span>,
+        <span class="summary-sig-arg">material</span>,
+        <span class="summary-sig-arg">speed</span>,
+        <span class="summary-sig-arg">boundaryconditions_tag</span>=<span class="summary-sig-default"><code class="variable-group">{</code><code class="variable-quote">'</code><code class="variable-string">fixed</code><code class="variable-quote">'</code><code class="variable-op">: </code><code class="variable-quote">'</code><code class="variable-string">fixed</code><code class="variable-quote">'</code><code class="variable-op">, </code><code class="variable-quote">'</code><code class="variable-string">open</code><code class="variable-quote">'</code><code class="variable-op">: </code><code class="variable-quote">'</code><code class="variable-string">open</code><code class="variable-quote">'</code><code class="variable-op">, </code><code class="variable-quote">'</code><code class="variable-string">stressfree</code><code class="variable-quote">'</code><code class="variable-op">: </code><code class="variable-quote">'</code><code class="variable-string">stressfree</code><code class="variable-quote">'</code><code class="variable-group">}</code></span>,
+        <span class="summary-sig-arg">materials</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">sources</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">flux_type</span>=<span class="summary-sig-default"><code class="variable-quote">'</code><code class="variable-string">lf</code><code class="variable-quote">'</code></span>)</span><br />
+      x.__init__(...) initializes x; see x.__class__.__doc__ for signature</td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.__init__">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="rho_v"></a><span class="summary-sig-name">rho_v</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">q</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.rho_v">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="F"></a><span class="summary-sig-name">F</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">q</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.F">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="q"></a><span class="summary-sig-name">q</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">w</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.q">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="mat"></a><span class="summary-sig-name">mat</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">w</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.mat">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="v"></a><span class="summary-sig-name">v</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">w</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.v">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="P"></a><span class="summary-sig-name">P</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">w</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.P">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="flux_num"></a><span class="summary-sig-name">flux_num</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">wave_speed</span>,
+        <span class="summary-sig-arg">q</span>,
+        <span class="summary-sig-arg">fluxes</span>,
+        <span class="summary-sig-arg">bdry_tags_state_and_fluxes</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.flux_num">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="flux"></a><span class="summary-sig-name">flux</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">w</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.flux">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="bdry_flux"></a><span class="summary-sig-name">bdry_flux</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">q_bdry</span>,
+        <span class="summary-sig-arg">q_null</span>,
+        <span class="summary-sig-arg">tag</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.bdry_flux">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="add_sources"></a><span class="summary-sig-name">add_sources</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">result</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.add_sources">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="bind_sources"></a><span class="summary-sig-name">bind_sources</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">t</span>,
+        <span class="summary-sig-arg">discr</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.bind_sources">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="op_template"></a><span class="summary-sig-name">op_template</span>(<span class="summary-sig-arg">self</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.op_template">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="bind"></a><span class="summary-sig-name">bind</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">discr</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.bind">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="max_eigenvalue"></a><span class="summary-sig-name">max_eigenvalue</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">t</span>,
+        <span class="summary-sig-arg">fields</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">discr</span>=<span class="summary-sig-default">None</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.max_eigenvalue">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" class="summary">
+    <p class="indent-wrapped-lines"><b>Inherited from <code>hedge.models.HyperbolicOperator</code></b>:
+      <code>estimate_timestep</code>
+      </p>
+    <p class="indent-wrapped-lines"><b>Inherited from <code>object</code></b>:
+      <code>__delattr__</code>,
+      <code>__format__</code>,
+      <code>__getattribute__</code>,
+      <code>__hash__</code>,
+      <code>__new__</code>,
+      <code>__reduce__</code>,
+      <code>__reduce_ex__</code>,
+      <code>__repr__</code>,
+      <code>__setattr__</code>,
+      <code>__sizeof__</code>,
+      <code>__str__</code>,
+      <code>__subclasshook__</code>
+      </p>
+    </td>
+  </tr>
+</table>
+<!-- ==================== PROPERTIES ==================== -->
+<a name="section-Properties"></a>
+<table class="summary" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr bgcolor="#70b0f0" class="table-header">
+  <td colspan="2" class="table-header">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr valign="top">
+        <td align="left"><span class="table-header">Properties</span></td>
+        <td align="right" valign="top"
+         ><span class="options">[<a href="#section-Properties"
+         class="privatelink" onclick="toggle_private();"
+         >hide private</a>]</span></td>
+      </tr>
+    </table>
+  </td>
+</tr>
+  <tr>
+    <td colspan="2" class="summary">
+    <p class="indent-wrapped-lines"><b>Inherited from <code>object</code></b>:
+      <code>__class__</code>
+      </p>
+    </td>
+  </tr>
+</table>
+<!-- ==================== METHOD DETAILS ==================== -->
+<a name="section-MethodDetails"></a>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr bgcolor="#70b0f0" class="table-header">
+  <td colspan="2" class="table-header">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr valign="top">
+        <td align="left"><span class="table-header">Method Details</span></td>
+        <td align="right" valign="top"
+         ><span class="options">[<a href="#section-MethodDetails"
+         class="privatelink" onclick="toggle_private();"
+         >hide private</a>]</span></td>
+      </tr>
+    </table>
+  </td>
+</tr>
+</table>
+<a name="__init__"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">__init__</span>(<span class="sig-arg">self</span>,
+        <span class="sig-arg">dimensions</span>,
+        <span class="sig-arg">material</span>,
+        <span class="sig-arg">speed</span>,
+        <span class="sig-arg">boundaryconditions_tag</span>=<span class="sig-default"><code class="variable-group">{</code><code class="variable-quote">'</code><code class="variable-string">fixed</code><code class="variable-quote">'</code><code class="variable-op">: </code><code class="variable-quote">'</code><code class="variable-string">fixed</code><code class="variable-quote">'</code><code class="variable-op">, </code><code class="variable-quote">'</code><code class="variable-string">open</code><code class="variable-quote">'</code><code class="variable-op">: </code><code class="variable-quote">'</code><code class="variable-string">open</code><code class="variable-quote">'</code><code class="variable-op">, </code><code class="variable-quote">'</code><code class="variable-string">stressfree</code><code class="variable-quote">'</code><code class="variable-op">: </code><code class="variable-quote">'</code><code class="variable-string">stressfree</code><code class="variable-quote">'</code><code class="variable-group">}</code></span>,
+        <span class="sig-arg">materials</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">sources</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">flux_type</span>=<span class="sig-default"><code class="variable-quote">'</code><code class="variable-string">lf</code><code class="variable-quote">'</code></span>)</span>
+    <br /><em class="fname">(Constructor)</em>
+  </h3>
+  </td><td align="right" valign="top"
+    ><span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.__init__">source&nbsp;code</a></span>&nbsp;
+    </td>
+  </tr></table>
+  
+  <p>x.__init__(...) initializes x; see x.__class__.__doc__ for 
+  signature</p>
+  <dl class="fields">
+    <dt>Parameters:</dt>
+    <dd><ul class="nomargin-top">
+        <li><strong class="pname"><code>sources</code></strong> - should be a table of functions that implement 
+          class:`hedge.data.IFieldDependentGivenFunction` or be None.</li>
+        <li><strong class="pname"><code>materials</code></strong> - should be a list of instances of libraries.materials.Material</li>
+    </ul></dd>
+    <dt>Overrides:
+        object.__init__
+    </dt>
+  </dl>
+</td></tr></table>
+</div>
+<br />
+<!-- ==================== NAVIGATION BAR ==================== -->
+<table class="navbar" border="0" width="100%" cellpadding="0"
+       bgcolor="#a0c0ff" cellspacing="0">
+  <tr valign="middle">
+
+  <!-- Tree link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="module-tree.html">Trees</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Index link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="identifier-index.html">Indices</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Help link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="help.html">Help</a>&nbsp;&nbsp;&nbsp;</th>
+
+      <th class="navbar" width="100%"></th>
+  </tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" width="100%%">
+  <tr>
+    <td align="left" class="footer">
+    Generated by Epydoc 3.0.1 on Fri Jul 29 15:51:34 2011
+    </td>
+    <td align="right" class="footer">
+      <a target="mainFrame" href="http://epydoc.sourceforge.net"
+        >http://epydoc.sourceforge.net</a>
+    </td>
+  </tr>
+</table>
+
+<script type="text/javascript">
+  <!--
+  // Private objects are initially displayed (because if
+  // javascript is turned off then we want them to be
+  // visible); but by default, we want to hide them.  So hide
+  // them unless we have a cookie that says to show them.
+  checkCookie();
+  // -->
+</script>
+</body>
+</html>
