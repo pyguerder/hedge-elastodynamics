@@ -1,0 +1,37 @@
+$Density
+2332
+$EndDensity
+
+$Permeability
+1.2566e-06 0          0
+*          1.2566e-06 0
+*          *          1.2566e-06
+$EndPermeability
+
+$Permittivity
+1.0345e-10 0 0
+* 1.0345e-10 0
+* * 1.0345e-10
+$EndPermittivity
+
+$LinearElasticConstants
+165.7e9 63.9e9 63.9e9   0      0    0
+  *   165.7e9 63.9e9   0      0    0
+  *     *  165.7e9   0      0    0
+  *      *    *    79.56e9    0    0
+  *      *    *     *    79.56e9   0
+  *      *    *     *      *   79.56e9
+$EndLinearElasticConstants
+
+$PiezoelectricStressConstants
+0 0 0 0 0 0
+0 0 0 0 0 0
+0 0 0 0 0 0
+$EndPiezoelectricStressConstants
+
+$PiezomagneticStressConstants
+0 0 0 0 0 0
+0 0 0 0 0 0
+0 0 0 0 0 0
+$EndPiezomagneticStressConstants
+
