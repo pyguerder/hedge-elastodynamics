@@ -1,0 +1,12 @@
+$Density
+9210
+$EndDensity
+
+$LinearElasticConstants
+ 82e9   40e9   40e9          0           0      0
+    *   82e9   40e9          0           0      0
+    *      *   82e9          0           0      0
+    0      0      0   17.501e9           0      0
+    0      0      0          0    17.501e9      0
+    0      0      0          0           0   48e9
+$EndLinearElasticConstants

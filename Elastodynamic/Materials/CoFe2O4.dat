@@ -1,0 +1,12 @@
+$Density
+5300
+$EndDensity
+
+$LinearElasticConstants
+ 286e9   173e9   170.5e9        0        0        0
+    *    286e9   170.5e9        0        0        0
+    *        *   269.5e9        0        0        0
+    0        0         0   45.3e9        0        0
+    0        0         0        0   45.3e9        0
+    0        0         0        0        0   56.5e9
+$EndLinearElasticConstants
