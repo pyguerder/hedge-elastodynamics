@@ -15,6 +15,13 @@ from pytools import Record
 from libraries.utils import Utils
 from pymbolic.primitives import IfPositive
 
+def Evaluate(material, val_2, val_1, val_0):
+    return IfPositive(material-1,
+               val_2,
+               IfPositive(material,
+                          val_1,
+                          val_0))
+
 class ElastoDynamicsOperator(HyperbolicOperator):
     """
     An nD linear Elastodynamics operator.
@@ -90,7 +97,10 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         from pytools.obj_array import make_obj_array
         q   = self.q(w)
         mat = self.mat(w)
-        rho = IfPositive(mat, self.materials[1].rho, self.materials[0].rho)
+        rho = Evaluate(mat,
+                       self.materials[2].rho,
+                       self.materials[1].rho,
+                       self.materials[0].rho)
         return make_obj_array([rho_v_i/rho for rho_v_i in self.rho_v(q)])
 
     def P(self, w):
@@ -101,7 +111,10 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         F = self.F(q)
         for i in range(self.dimF[dim]):
             for j in range(self.dimF[dim]):
-                Ceqij = IfPositive(mat, self.materials[1].Ceq[i,j], self.materials[0].Ceq[i,j])
+                Ceqij = Evaluate(mat,
+                                 self.materials[2].Ceq[i,j],
+                                 self.materials[1].Ceq[i,j],
+                                 self.materials[0].Ceq[i,j])
                 Pi[i] += Ceqij*F[j]
         return Pi
 
@@ -280,8 +293,14 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         w = join_fields(speed,q,material)
 
         mat = self.mat(w)
-        C00 = IfPositive(mat, self.materials[1].Ceq[0,0], self.materials[0].Ceq[0,0])
-        rho = IfPositive(mat, self.materials[1].rho, self.materials[0].rho)
+        C00 = Evaluate(mat,
+                       self.materials[2].Ceq[0,0],
+                       self.materials[1].Ceq[0,0],
+                       self.materials[0].Ceq[0,0])
+        rho = Evaluate(mat,
+                       self.materials[2].rho,
+                       self.materials[1].rho,
+                       self.materials[0].rho)
         speed = (C00/rho)**0.5
 
 
@@ -422,10 +441,22 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
                                 IL = Utils.condense_sym(i, l, dim) - 1
                                 IK = Utils.condense_sym(i, k, dim) - 1
                                 LM = Utils.condense_sym(l, m, dim) - 1
-                                Cnl = IfPositive(mat, self.materials[1].Cnl[I2,J2,K2], self.materials[0].Cnl[I2,J2,K2])
-                                Ci2lm = IfPositive(mat, self.materials[1].C[I2, LM], self.materials[0].C[I2, LM])
-                                Cilk2 = IfPositive(mat, self.materials[1].C[IL, K2], self.materials[0].C[IL, K2])
-                                Ciklm = IfPositive(mat, self.materials[1].C[IK, LM], self.materials[0].C[IK, LM])
+                                Cnl = Evaluate(mat,
+                                               self.materials[2].Cnl[I2,J2,K2],
+                                               self.materials[1].Cnl[I2,J2,K2],
+                                               self.materials[0].Cnl[I2,J2,K2])
+                                Ci2lm = Evaluate(mat,
+                                                 self.materials[2].C[I2, LM],
+                                                 self.materials[1].C[I2, LM],
+                                                 self.materials[0].C[I2, LM])
+                                Cilk2 = Evaluate(mat,
+                                                 self.materials[2].C[IL, K2],
+                                                 self.materials[1].C[IL, K2],
+                                                 self.materials[0].C[IL, K2])
+                                Ciklm = Evaluate(mat,
+                                                 self.materials[2].C[IK, LM],
+                                                 self.materials[1].C[IK, LM],
+                                                 self.materials[0].C[IK, LM])
                                 M[I1,J1,K1] = Cnl \
                                     + Ci2lm * Utils.kronecker(k,n) \
                                     + Cilk2 * Utils.kronecker(j,k) \
@@ -442,7 +473,10 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             F = self.F(q)
             for i in range(self.dimF[dim]):
                 for j in range(self.dimF[dim]):
-                    C[i,j] = IfPositive(mat, self.materials[1].Ceq[i,j], self.materials[0].Ceq[i,j])
+                    C[i,j] = Evaluate(mat,
+                                      self.materials[2].Ceq[i,j],
+                                      self.materials[1].Ceq[i,j],
+                                      self.materials[0].Ceq[i,j])
                     for k in range(self.dimF[dim]):
                         C[i,j] += 0.5 * M[i, j, k] * F[k]
             return C
@@ -451,7 +485,10 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             F = self.F(q)
             for i in range(self.dimF[dim]):
                 for j in range(self.dimF[dim]):
-                    Ceqij = IfPositive(mat, self.materials[1].Ceq[i,j], self.materials[0].Ceq[i,j])
+                    Ceqij = Evaluate(mat,
+                                     self.materials[2].Ceq[i,j],
+                                     self.materials[1].Ceq[i,j],
+                                     self.materials[0].Ceq[i,j])
                     for k in range(self.dimF[dim]):
                         C[i,j] = Ceqij
             return C
@@ -711,8 +748,14 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         w = join_fields(speed, q, material, f2)
 
         mat = self.mat(w)
-        C00 = IfPositive(mat, self.materials[1].Ceq[0,0], self.materials[0].Ceq[0,0])
-        rho = IfPositive(mat, self.materials[1].rho, self.materials[0].rho)
+        C00 = Evaluate(mat,
+                       self.materials[2].Ceq[0,0],
+                       self.materials[1].Ceq[0,0],
+                       self.materials[0].Ceq[0,0])
+        rho = Evaluate(mat,
+                       self.materials[2].rho,
+                       self.materials[1].rho,
+                       self.materials[0].rho)
         speed = (C00/rho)**0.5
 
         dim_subset = (True,) * dim + (False,) * (3-dim)
@@ -1010,8 +1053,14 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         w = join_fields(speed, q, material, f2)
 
         mat = self.mat(w)
-        C00 = IfPositive(mat, self.materials[1].Ceq[0,0], self.materials[0].Ceq[0,0])
-        rho = IfPositive(mat, self.materials[1].rho, self.materials[0].rho)
+        C00 = Evaluate(mat,
+                       self.materials[2].Ceq[0,0],
+                       self.materials[1].Ceq[0,0],
+                       self.materials[0].Ceq[0,0])
+        rho = Evaluate(mat,
+                       self.materials[2].rho,
+                       self.materials[1].rho,
+                       self.materials[0].rho)
         speed = (C00/rho)**0.5
 
         dim_subset = (True,) * dim + (False,) * (3-dim)

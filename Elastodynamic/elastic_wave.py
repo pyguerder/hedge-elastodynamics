@@ -165,11 +165,13 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
 
     material1 = Material('Materials/aluminium.dat', dtype, print_output)
     material2 = Material('Materials/calcite.dat', dtype, print_output)
+    material3 = Material('Materials/calcite.dat', dtype, print_output)
 
     # Only calcite.dat has a Cnl for the moment!
     if nonlinearity_type is not None:
             material1 = Material('Materials/calcite.dat', dtype, print_output)
             material2 = Material('Materials/calcite.dat', dtype, print_output)
+            material3 = Material('Materials/calcite.dat', dtype, print_output)
 
     # Work out which elements belong to each material
     material_elements = []
@@ -186,17 +188,24 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     if 'mat2' in mesh_init.tag_to_elements.keys():
         elements_list = [el.id for el in mesh_init.tag_to_elements['mat2']]
         material_elements.append(elements_list)
-        speeds.append((material2.C[0,0]/material2.rho)**0.5)
         materials.append(material2)
+    if 'mat3' in mesh_init.tag_to_elements.keys():
+        elements_list = [el.id for el in mesh_init.tag_to_elements['mat3']]
+        material_elements.append(elements_list)
+        speeds.append((material2.C[0,0]/material2.rho)**0.5)
+        materials.append(material3)
     else:
-        # If we have no 'mat2', then the second material is material1
+        # If we have no 'mat2', then the second and third materials are material1
+        materials.append(material1)
         materials.append(material1)
     speed = max(speeds)
 
     def mat_val(x, el):
         # Will be used in IfPositive(mat, then, else)
         # 1 will lead to then, 0 to else; default is 0/else
-        if len(material_elements) > 1 and el.id in material_elements[1]:
+        if len(material_elements) > 2 and el.id in material_elements[2]:
+            return 2
+        elif len(material_elements) > 1 and el.id in material_elements[1]:
             return 1
         return 0
 
