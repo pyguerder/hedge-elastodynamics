@@ -26,7 +26,7 @@ from scipy import triu
 
 class Material:
     # Initialize the material from the given file
-    def __init__(self, filename, dtype, print_output):
+    def __init__(self, filename, constants, dtype, print_output):
         
         self.dtype = dtype
         self.print_output = print_output
@@ -40,25 +40,32 @@ class Material:
             sys.exit(1);
 
         # Read the mass density.
-        self.rho = self.Read_FloatValue('Density')
+        if 'Density' in constants:
+            self.rho = self.Read_FloatValue('Density')
         
         # Read the permeability
-        self.mu = self.Read_FloatValue('Permeability')
+        if 'Permeability' in constants:
+            self.mu = self.Read_FloatValue('Permeability')
         
         # Read the permittivity
-        self.epsilon = self.Read_Matrix('Permittivity', 3, 3)
+        if 'Permittivity' in constants:
+            self.epsilon = self.Read_Matrix('Permittivity', 3, 3)
         
         # Read the non linearity type
-        self.nonlinearity_type = self.Read_TextValue('NonlinearityType')
+        if 'NonlinearityType' in constants:
+            self.nonlinearity_type = self.Read_TextValue('NonlinearityType')
         
         # Read the linear elastic constants
-        self.C, self.elastic_type = self.Read_SymMatrix('LinearElasticConstants')
+        if 'LinearElasticConstants' in constants:
+            self.C, self.elastic_type = self.Read_SymMatrix('LinearElasticConstants')
 
         # Read the linear elastic constants
-        self.e = self.Read_Matrix('PiezoElectricConstants', 3, 6)
+        if 'PiezoElectricConstants' in constants:
+            self.e = self.Read_Matrix('PiezoElectricConstants', 3, 6)
         
         # Read the nonlinear elastic constants
-        self.Cnl = self.Read_Tensor('NonlinearElasticConstants')
+        if 'NonlinearElasticConstants' in constants:
+            self.Cnl = self.Read_Tensor('NonlinearElasticConstants')
            
         # close file
         self.file.close()
@@ -93,7 +100,7 @@ class Material:
         except:
             if self.print_output:
                 print self.filename, 'contains no valid', name , 'section.'
-            return None, None
+            return None
         if (myline != '$End' + name + '\n') and self.print_output:
             print self.filename, 'has an invalid', name, 'section.'
         return Cnl
@@ -136,7 +143,7 @@ class Material:
         except:
             if self.print_output:
                 print self.filename, 'contains no valid', name, 'section.'
-            return None, None
+            return None
         if (self.file.readline() != '$End' + name + '\n') and self.print_output:
             print self.filename, 'has an invalid', name, 'section.'
         return C, elastic_type

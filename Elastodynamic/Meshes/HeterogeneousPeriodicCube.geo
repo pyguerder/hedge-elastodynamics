@@ -1,5 +1,5 @@
 // Gmsh project created on Fri May 13 15:55:57 2011
-lc = 450;
+lc = 800;
 
 // Sommet du cube
 Point(1) = {1600, -1600, 1600, lc};

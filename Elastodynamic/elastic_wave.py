@@ -13,12 +13,24 @@ import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
 
 
-def main(write_output=True, allow_features='mpi', dim=2, order=4,
-         stfree_tag=TAG_NONE, fix_tag=TAG_ALL, op_tag=TAG_NONE,
-         flux_type="lf", debug=[], dtype=numpy.float64,
-         max_steps=None, output_dir='output', pml=True,
-         override_mesh_sources=False, final_time=12, quiet_output=True,
-         nonlinearity_type=None):
+def main(write_output=True,
+         allow_features='',
+         dim=2,
+         order=4,
+         stfree_tag=TAG_NONE,
+         fix_tag=TAG_ALL,
+         op_tag=TAG_NONE,
+         flux_type="lf",
+         max_steps=None,
+         output_dir='output',
+         pml=None,
+         sources=None,
+         final_time=12,
+         quiet_output=True,
+         nonlinearity_type=None,
+         mesh_file='',
+         periodicity=None,
+         material_files=None):
     """
     Parameters:
     @param write_output: whether to write (True) visualization files or not (False)
@@ -30,14 +42,16 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     @param op_tag: which elements to mark as open boundaries
     @param flux_type: 'lf' (Lax-Freidrich flux) or 'central'
     @param debug: debug parameters to use in make_discretization()
-    @param dtype: defaults to float64, automatically reduced to float32 for cuda
     @param max_steps: None (no limit) or maximum number of steps to compute
     @param output_dir: directory where to write the output
-    @param pml: True or False, to enable or disable the NPML
+    @param pml: None or NPML widths in this order: [x_l, y_l, z_l, x_r, y_r, z_r]
     @param override_mesh_sources: if True, ignores the source points of the mesh file
     @param final_time: number of seconds of simulations to compute
     @param quiet_output: if True, only the main thread will print information
     @param nonlinearity_type: None (linear) or 'classical' (non-linear)
+    @param mesh_file: the file to use as a mesh, or '' in 1D
+    @param periodicity: the names of the boundaries to stick together, or None
+    @param material_files: array, the material files (.dat) to use
     """
 
     from os import access, makedirs, chdir, F_OK
@@ -49,6 +63,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     rcon = guess_run_context(allow_features)
     rcon_init = guess_run_context(allow_features)
 
+    debug = []
     if allow_features == 'cuda':
         dtype = numpy.float32
         debug = ['cuda_no_plan']
@@ -70,34 +85,22 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     class Receiver():
         pass
 
+    assert dim in [1, 2, 3], 'Bad number of dimensions'
+
     # Define mesh ---
 
-    mesh_file = ''
-
     mesh = None
-    if dim == 1:
+    if mesh_file != '':
+        mesh = read_gmsh(mesh_file,
+                         force_dimension=dim,
+                         periodicity=periodicity,
+                         allow_internal_boundaries=False,
+                         tag_mapper=lambda tag:tag)
+    elif dim == 1:
         from hedge.mesh.generator import make_uniform_1d_mesh
         mesh = make_uniform_1d_mesh(-10, 10, 500)
-    elif dim == 2:
-        #periodicity= [('minus_x','plus_x'), None]
-        periodicity= [None, None]
-        mesh_file = 'Meshes/HeterogeneousPeriodicSquare.msh'
-        mesh = read_gmsh(mesh_file,
-                         force_dimension=2,
-                         periodicity=periodicity,
-                         allow_internal_boundaries=False,
-                         tag_mapper=lambda tag:tag)
-    elif dim == 3:
-        #periodicity= [('minus_x','plus_x'), ('minus_y','plus_y'), ('minus_z','plus_z')]
-        periodicity= [None, None, None]
-        mesh_file = 'Meshes/PeriodicCube.msh'
-        mesh = read_gmsh(mesh_file,
-                         force_dimension=3,
-                         periodicity=periodicity,
-                         allow_internal_boundaries=False,
-                         tag_mapper=lambda tag:tag)
     else:
-        raise RuntimeError('Bad number of dimensions')
+        raise Exception('Error: No mesh file specified!')
 
     if rcon.is_head_rank:
         print "%d elements" % len(mesh.elements)
@@ -115,21 +118,25 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     # Define sources ---
 
     source = None
-    sources = None
-    if mesh_file:
-        sources = gmsh.pointSources
-    if sources and not override_mesh_sources:
-        #FIXME: Multiple source points are currently unsupported
-        source = sources[0]
+
+    if sources is not None:
+        #FIXME: "Multiple source points are currently unsupported"
+        source = sources
         if print_output:
-            print "Using source from Gmsh file,", source
+            print "Using specified source", source
     else:
-        if dim == 2:
-            source = numpy.array([800.0,0.0])
-        elif dim == 3:
-            source = numpy.array([0.0,0.0,0.0])
         if print_output:
-            print "Using default source position,", source
+            print "No source specified",
+        if mesh_file:
+            print "trying to find one in", mesh_file
+            sources = gmsh.pointSources
+            if sources is not None:
+                print "Using source", source, "from", mesh_file
+            else:
+                print "Error: no source!"
+        else:
+            print "and no mesh file!"
+            raise Exception('Error: Could not find any source!')
 
     def source_v_x(x, el):
         x = x - source
@@ -163,42 +170,38 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     # End of sources definition ---
     # Define materials and link them with elements ---
 
-    material1 = Material('Materials/aluminium.dat', dtype, print_output)
-    material2 = Material('Materials/calcite.dat', dtype, print_output)
-    material3 = Material('Materials/calcite.dat', dtype, print_output)
-
-    # Only calcite.dat has a Cnl for the moment!
+    materials = []
+    constants = ['Density', 'LinearElasticConstants']
     if nonlinearity_type is not None:
-            material1 = Material('Materials/calcite.dat', dtype, print_output)
-            material2 = Material('Materials/calcite.dat', dtype, print_output)
-            material3 = Material('Materials/calcite.dat', dtype, print_output)
+        constants.append('NonlinearElasticConstants')
+    for file in material_files:
+        material = Material(file, constants, dtype, print_output)
+        if nonlinearity_type is not None:
+            # In the nonlinear mode, materials MUST have a nonlinear constants
+            assert material.Cnl is not None, "Error: Missing nonlinear constants in " + material_files[0]
+        materials.append(material)
+    assert len(materials) > 0, "Error: You must define at least 1 material."
 
     # Work out which elements belong to each material
     material_elements = []
-    materials = []
+    used_materials = []
     speeds = []
 
-    # Default material is material1
-    speeds.append((material1.C[0,0]/material1.rho)**0.5)
-    materials.append(material1)
+    for num, name in [(0, 'mat1'), (1, 'mat2'), (2, 'mat3')]:
+        if len(materials) > num:
+            if name in mesh_init.tag_to_elements.keys():
+                elements_list = [el.id for el in mesh_init.tag_to_elements[name]]
+                material_elements.append(elements_list)
+        else:
+            num = 0
+        speeds.append((materials[num].C[0,0]/materials[num].rho)**0.5)
+        used_materials.append(materials[num])
+        if print_output:
+            print "Using", materials[num].filename, "as", name
 
-    if 'mat1' in mesh_init.tag_to_elements.keys():
-        elements_list = [el.id for el in mesh_init.tag_to_elements['mat1']]
-        material_elements.append(elements_list)
-    if 'mat2' in mesh_init.tag_to_elements.keys():
-        elements_list = [el.id for el in mesh_init.tag_to_elements['mat2']]
-        material_elements.append(elements_list)
-        materials.append(material2)
-    if 'mat3' in mesh_init.tag_to_elements.keys():
-        elements_list = [el.id for el in mesh_init.tag_to_elements['mat3']]
-        material_elements.append(elements_list)
-        speeds.append((material2.C[0,0]/material2.rho)**0.5)
-        materials.append(material3)
-    else:
-        # If we have no 'mat2', then the second and third materials are material1
-        materials.append(material1)
-        materials.append(material1)
     speed = max(speeds)
+    if print_output:
+        print "Using max speed:", speed, "m/s"
 
     def mat_val(x, el):
         # Will be used in IfPositive(mat, then, else)
@@ -221,7 +224,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
                     { 'stressfree' : stfree_tag,
                       'fixed' : fix_tag,
                       'open' : op_tag },
-              'materials': materials,
+              'materials': used_materials,
               'flux_type': flux_type
               }
 
@@ -266,14 +269,14 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
                 point_receiver.done_dt = False
                 point_receiver.id = i
                 point_receiver.coordinates = receiver
+                point_receiver.filename = "receiver_%s_%s.txt" % (rcon.rank, point_receiver.id)
             except:
-                if print_output:
+                if not quiet_output:
                     print "Receiver ignored (point not found):", receiver
             else:
                 point_receivers.append(point_receiver)
                 i += 1
-                if print_output:
-                    print "Add receiver %d:" % i, receiver
+                print "Using", point_receiver.filename, "for receiver", receiver
 
     # End of receivers definition ---
     # Define timestepping and fields ---
@@ -326,7 +329,7 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     if write_output:
         log_file_name = 'elastic_wave.dat'
         for point_receiver in point_receivers:
-            point_receiver.pointfile = open("receiver_%s.txt" % point_receiver.id, "wt")
+            point_receiver.pointfile = open(point_receiver.filename, "wt")
     else:
         log_file_name = None
 
@@ -351,11 +354,9 @@ def main(write_output=True, allow_features='mpi', dim=2, order=4,
     # End of visualization definition ---
     # Bind the operator to the discretization ---
 
-    if pml:
-        # widths: [x_l, y_l, z_l, x_r, y_r, z_r]
-        pml_widths = [400, 400, 0, 400, 400, 0]
+    if pml is not None:
         coefficients = op.coefficients_from_width(discr, mesh,
-                            widths=pml_widths, material=material1, alpha_magnitude=2*pi*0.7)
+                            widths=pml, material=materials[0], alpha_magnitude=2*pi*0.7)
         rhs = op.bind(discr, coefficients)
     else:
         rhs = op.bind(discr)
