@@ -41,7 +41,6 @@ def main(write_output=True,
     @param fix_tag: which elements to mark as fixed boundaries
     @param op_tag: which elements to mark as open boundaries
     @param flux_type: 'lf' (Lax-Freidrich flux) or 'central'
-    @param debug: debug parameters to use in make_discretization()
     @param max_steps: None (no limit) or maximum number of steps to compute
     @param output_dir: directory where to write the output
     @param pml: None or NPML widths in this order: [x_l, y_l, z_l, x_r, y_r, z_r]
@@ -130,6 +129,7 @@ def main(write_output=True,
         if mesh_file:
             print "trying to find one in", mesh_file
             sources = gmsh.pointSources
+            source = sources[0]
             if sources is not None:
                 print "Using source", source, "from", mesh_file
             else:
