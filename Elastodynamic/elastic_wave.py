@@ -178,7 +178,7 @@ def main(write_output=True,
         material = Material(file, constants, dtype, print_output)
         if nonlinearity_type is not None:
             # In the nonlinear mode, materials MUST have a nonlinear constants
-            assert material.Cnl is not None, "Error: Missing nonlinear constants in " + material_files[0]
+            assert material.Cnl is not None, "Error: Missing nonlinear constants in " + file
         materials.append(material)
     assert len(materials) > 0, "Error: You must define at least 1 material."
 
