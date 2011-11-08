@@ -1,18 +1,29 @@
 ; Questions
 * Dans Hedge, comment utiliser une liste de valeurs comme source ? (voir make_tdep_given et adapter pour avoir la même sortie que TimeIntervalGivenFunction)
-  -> voir volume_interpolant et éventuellement linéariser entre deux points du tableau de temps
+	-> voir volume_interpolant et éventuellement linéariser entre deux points du tableau de temps
 * Dans Gmsh, comment tagger une interface entre 2 éléments ? (ligne ou surface)
 
 ; Tests
 * Faire tourner le programme sur des cas physiques connus
 
 ; Ajouts
-* Réparer le problème CUDA nécessitant peut-être un Context.pop()
-  -> en attente d'une évolution de Hedge/pyCuda car les exemples ne fonctionnnent plus
+* Tracer les courbes des récepteurs et les comparer à un résultat connu
+  -> recréer les 3 tests de la thèse de Yifeng (Lamb2D, anisotrope, non linéaire ; reprendre les tailles de maillage dans la thèse)
+  -> comprendre pourquoi les résultats diffèrent
 * Permettre d'introduire des discontinuités dans le maillage (*interface* tagguée comme une frontière) (utiliser un tag pour un flux numérique de volume : choisir un type de flux à une *interface* donnée)
+  -> à faire
+* Simuler un cristal phononique non linéaire (savoir quoi chercher, besoin de savoir ce qui est attendu en bordure de bande, cf. publications photoniques ; trouver une structure de bande adaptée avec un gap ; choix des matériaux avec constantes NL)
+  -> en cours, avec COMSOL
 * Regarder l'utilisation de bind_interdomains dans models/advection
 * Utiliser une liste de valeurs comme source (éventuellement avec un retournement temporel)
-* Introduire les flux de type Godounov (v. programme Matlab & thèse Yifeng)
+* Introduire les flux de type Godounov (cf. programme Matlab & thèse de Yifeng)
 * Introduire les pertes thermovisqueuses (cf. tools_second order)
 * Introduire la piézoélectricité (ajout de l'équation de Poisson pour calculer le flux)
-* Permettre aux matériaux d'avoir des orientations différentes, en appliquant des rotations aux matrices (voir la bibliothèque Python Mathutils pour une implémentation des angles d'Euler)
+* Introduire les orientations des matériaux, en appliquant des rotations aux matrices (voir la bibliothèque Python Mathutils pour une implémentation des angles d'Euler)
+* Introduire la viscosité (travailler en fréquentiel)
+* Introduire la multiphysique
+* Réécrire les programmes COMSOL (permet d'utiliser les mêmes maillages, évite d'acheter des licences...)
+
+; Bugs
+* Le code ne fonctionne pas en CUDA 3D
+* Les frontières des éléments saturent en CUDA
