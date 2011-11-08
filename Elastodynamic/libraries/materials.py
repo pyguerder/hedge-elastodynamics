@@ -189,7 +189,8 @@ class Material:
     def Read_FloatValue(self, name):
         text = self.Read_TextValue(name)
         try:
-            value = float(text)
+            value = numpy.float32(text)
+            value = value.astype(self.dtype)
         except ValueError:
             value = 0.
             if self.print_output:
@@ -197,20 +198,3 @@ class Material:
             return None
         return value
 
-#myMaterial = Material('../Materials/calcite.dat', numpy.float64, True)
-#print "Rho:", myMaterial.rho
-#print "Mu:", myMaterial.mu
-#print "Epsilon:", myMaterial.epsilon
-#print "C:", myMaterial.C
-#print "Elastic type:", myMaterial.elastic_type
-#print "NonLinearity type:", myMaterial.nonlinearity_type
-#print "Permittivity:", myMaterial.epsilon
-#print "PiezoElectricConstants:", myMaterial.e
-#myMaterial = Material('Materials/test.dat', numpy.float64, True)
-#print "Rho:", myMaterial.rho
-#print "Mu:", myMaterial.mu
-#print "Epsilon:", myMaterial.epsilon
-#print "C:", myMaterial.C
-#print "Elastic type:", myMaterial.elastic_type
-#print "NonLinearity type:", myMaterial.nonlinearity_type
-#print "Cnl:", myMaterial.Cnl

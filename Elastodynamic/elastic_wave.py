@@ -10,6 +10,7 @@ __license__ = "GNU GPLv3 (or more recent equivalent)"
 
 
 import numpy
+import time
 from hedge.mesh import TAG_ALL, TAG_NONE
 
 
@@ -63,11 +64,10 @@ def main(write_output=True,
     rcon_init = guess_run_context(allow_features)
 
     debug = []
-    if allow_features == 'cuda':
+    dtype = numpy.float64
+    if 'cuda' in allow_features:
         dtype = numpy.float32
         debug = ['cuda_no_plan']
-    elif allow_features == 'mpi':
-        dtype = numpy.float64
 
     if rcon.is_head_rank and output_dir and not access(output_dir, F_OK):
         makedirs(output_dir)
@@ -365,7 +365,7 @@ def main(write_output=True,
     # Define the timestep loop ---
 
     t = 0.0
-    max_txt = ''
+    max_txt = ' '
     try:
         from hedge.timestep import times_and_steps
 
@@ -381,7 +381,7 @@ def main(write_output=True,
 
             if step % 20 == 0:
                 if print_output:
-                    print 'Step ' + format(step) + max_txt
+                    print 'Step ' + format(step) + max_txt + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
                 if write_output:
                     visf = vis.make_file("fld-%04d" % step)
