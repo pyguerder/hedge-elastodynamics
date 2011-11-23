@@ -102,7 +102,7 @@ def main(write_output=True,
         raise Exception('Error: No mesh file specified!')
 
     if rcon.is_head_rank:
-        print "%d elements" % len(mesh.elements)
+        print "Using %d elements and order %d" % (len(mesh.elements), order)
         mesh_data = rcon.distribute_mesh(mesh)
         mesh_init = rcon_init.distribute_mesh(mesh)
     else:
@@ -194,12 +194,14 @@ def main(write_output=True,
                 material_elements.append(elements_list)
         else:
             num = 0
-        speeds.append((materials[num].C[0,0]/materials[num].rho)**0.5)
+        speed = (materials[num].C[0,0]/materials[num].rho)**0.5
+        speeds.append(speed.astype(dtype))
         used_materials.append(materials[num])
         if print_output:
             print "Using", materials[num].filename, "as", name
 
     speed = max(speeds)
+
     if print_output:
         print "Using max speed:", speed, "m/s"
 

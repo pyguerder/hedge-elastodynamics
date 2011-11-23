@@ -15,9 +15,9 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 from elastic_wave import main as simulation
 
 simulation(write_output=True,
-           allow_features='mpi',
+           allow_features=['cuda', 'mpi'],
            dim=2,
-           order=4,
+           order=5,
            stfree_tag=TAG_NONE,
            fix_tag=TAG_ALL,
            op_tag=TAG_NONE,
@@ -25,10 +25,11 @@ simulation(write_output=True,
            max_steps=None,
            output_dir='output',
            pml=[400, 400, 0, 400, 400, 0],
-           sources=numpy.array([200.0,0.0]),
-           final_time=12,
+           sources=numpy.array([800.0,0.0]),
+           final_time=1,
            quiet_output=True,
            nonlinearity_type=None,
-           mesh_file = 'Meshes/BiHeterogeneousPeriodicSquare.msh',
+           mesh_file = 'Meshes/Rectangle.msh',
            periodicity = [None, None],
-           material_files = ['Materials/aluminium.dat', 'Materials/calcite.dat', 'Materials/SiO2.dat'])
+           material_files = ['Materials/ex2ddir.dat', 'Materials/ex2ddir.dat', 'Materials/ex2ddir.dat'])
+

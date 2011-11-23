@@ -15,7 +15,7 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 from elastic_wave import main as simulation
 
 simulation(write_output=True,
-           allow_features='mpi',
+           allow_features=['cuda', 'mpi'],
            dim=3,
            order=4,
            stfree_tag=TAG_NONE,
@@ -32,3 +32,4 @@ simulation(write_output=True,
            mesh_file = 'Meshes/HeterogeneousPeriodicCube.msh',
            periodicity = [None, None, None],
            material_files = ['Materials/aluminium.dat', 'Materials/calcite.dat'])
+
