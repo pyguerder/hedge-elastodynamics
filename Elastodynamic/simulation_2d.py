@@ -14,7 +14,7 @@ from hedge.mesh import TAG_ALL, TAG_NONE
 
 from elastic_wave import main as simulation
 
-simulation(write_output=True,
+simulation(write_output=['vtu', 'receivers', 'txt'],
            allow_features=['cuda', 'mpi'],
            dim=2,
            order=5,

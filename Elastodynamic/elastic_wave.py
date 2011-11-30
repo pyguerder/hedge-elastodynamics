@@ -14,7 +14,7 @@ import time
 from hedge.mesh import TAG_ALL, TAG_NONE
 
 
-def main(write_output=True,
+def main(write_output=['vtu', 'receivers'],
          allow_features='',
          dim=2,
          order=4,
@@ -34,7 +34,7 @@ def main(write_output=True,
          material_files=None):
     """
     Parameters:
-    @param write_output: whether to write (True) visualization files or not (False)
+    @param write_output: output data, among 'vtu', 'receivers' and 'txt'
     @param allow_features: 'mpi' or 'cuda'
     @param dim: 1, 2 or 3
     @param order: the order of the method
@@ -316,8 +316,29 @@ def main(write_output=True,
     # End of timestepping and fields definition ---
     # Define visualization ---
 
+    def write_datafile(filename, variables):
+        if rcon is not None and len(rcon.ranks) > 1:
+            filename += "-%04d" % rcon.rank
+        visfile = open(filename + ".txt", "wt")
+        visfile.write("t\t")
+        for name, field in variables:
+            i = 0
+            for subvect in field:
+                i += 1
+                assert len(subvect) == len(discr.nodes), "Wrong length!"
+                visfile.write(name + "_" + format(i) + "\t")
+        visfile.write("\n")
+        for i in range(len(discr.nodes)):
+            for coord in discr.nodes[i]:
+                visfile.write(format(coord) + "\t")
+            for name, field in variables:
+                for subvect in field:
+                    visfile.write(format(subvect[i]) + "\t")
+            visfile.write("\n")
+        visfile.close()
+
     from hedge.visualization import VtkVisualizer
-    if write_output:
+    if 'vtu' in write_output:
         vis = VtkVisualizer(discr, rcon, 'fld')
 
     from pytools.log import LogManager, \
@@ -328,12 +349,13 @@ def main(write_output=True,
     if output_dir:
         chdir(output_dir)
 
-    if write_output:
+    log_file_name = None
+    if 'vtu' in write_output:
         log_file_name = 'elastic_wave.dat'
+
+    if 'receivers' in write_output:
         for point_receiver in point_receivers:
             point_receiver.pointfile = open(point_receiver.filename, "wt")
-    else:
-        log_file_name = None
 
     logmgr = LogManager(log_file_name, "w", rcon.communicator)
     add_run_info(logmgr)
@@ -385,7 +407,7 @@ def main(write_output=True,
                 if print_output:
                     print 'Step ' + format(step) + max_txt + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
-                if write_output:
+                if 'vtu' in write_output:
                     visf = vis.make_file("fld-%04d" % step)
                     variables = [("v", discr.convert_volume(v(), "numpy")),
                                  ("F", discr.convert_volume(f(), "numpy"))]
@@ -395,38 +417,44 @@ def main(write_output=True,
                     vis.add_data(visf, variables, time=t, step=step)
                     visf.close()
 
-            if write_output:
+                if 'txt' in write_output:
+                    variables = [("v", discr.convert_volume(v(), "numpy")),
+                                 ("F", discr.convert_volume(f(), "numpy"))]
+                    if pml:
+                        f_2 = ("F2", discr.convert_volume(f2(), "numpy"))
+                        variables.append(f_2)
+                    write_datafile("fld-%04d" % step, variables)
+
+            if 'receivers' in write_output:
                 for point_receiver in point_receivers:
                     val = point_receiver.evaluator(fields)
-                    buffer = ""
                     if not point_receiver.done_dt:
-                        buffer += "# dt: %g s\n" % dt
-                        buffer += "# v: %d fields\n" % dim
-                        buffer += "# F: %d fields\n" % op.dimF[dim]
+                        point_receiver.pointfile.write("# dt: %g s\n" % dt)
+                        point_receiver.pointfile.write("# v: %d fields\n" % dim)
+                        point_receiver.pointfile.write("# F: %d fields\n" % op.dimF[dim])
                         if pml:
-                            buffer += "# F2: %d fields\n" % (dim*dim*2)
-                        buffer += "# Coordinates: %s\n" % repr(point_receiver.coordinates)
-                        buffer += 't '
+                            point_receiver.pointfile.write("# F2: %d fields\n" % (dim*dim*2))
+                        point_receiver.pointfile.write("# Coordinates: %s\nt " % repr(point_receiver.coordinates))
                         for i in range(dim):
-                            buffer += 'v%s ' % i
+                            point_receiver.pointfile.write('v%s ' % i)
                         for i in range(op.dimF[dim]):
-                            buffer += "F%s " % i
+                            point_receiver.pointfile.write("F%s " % i)
                         if pml:
                             for i in range(dim*dim*2):
-                                buffer += "F''%s " % i
+                                point_receiver.pointfile.write("F''%s " % i)
                         point_receiver.done_dt = True
-                    buffer += "\n%s " % format(t)
+                    point_receiver.pointfile.write("\n%s " % format(t))
                     for i in range(len(val)):
-                        buffer += "%s " % format(val[i])
-                    buffer += '\n'
-                    point_receiver.pointfile.write(buffer)
+                        point_receiver.pointfile.write("%s " % format(val[i]))
 
             fields = stepper(fields, t, dt, rhs)
             #fields = mode_filter(fields)
 
     finally:
-        if write_output:
+        if 'vtu' in write_output:
             vis.close()
+
+        if 'receivers' in write_output:
             for point_receiver in point_receivers:
                 point_receiver.pointfile.close()
 
