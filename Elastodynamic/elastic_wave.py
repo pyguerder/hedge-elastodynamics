@@ -131,8 +131,8 @@ def main(write_output=['vtu', 'receivers'],
         if mesh_file:
             print "trying to find one in", mesh_file
             sources = gmsh.pointSources
-            source = sources[0]
-            if sources is not None:
+            if sources != []:
+                source = sources[0]
                 print "Using source", source, "from", mesh_file
             else:
                 print "Error: no source!"
@@ -271,7 +271,7 @@ def main(write_output=['vtu', 'receivers'],
     i = 0
     if mesh_file:
         receivers = gmsh.pointReceivers
-    if receivers is not None:
+    if receivers != []:
         for receiver in receivers:
             try:
                 point_receiver = Receiver()
