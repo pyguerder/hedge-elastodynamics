@@ -32,11 +32,11 @@ class TimeRickerWaveletGivenFunction(ITimeDependentGivenFunction):
         self.tD = tD
 
     def volume_interpolant(self, t, discr):
-        from math import exp, pi
-        return (0.5 - (pi*self.fc)**2 * (t - self.tD)**2) * exp(-(pi*self.fc)**2 * (t - self.tD)**2)\
+        from math import sin, pi
+        return (0.5 * sin(2*pi*self.fc*t))\
                 * self.gf.volume_interpolant(t, discr)
 
     def boundary_interpolant(self, t, discr, tag):
-        from math import pi, exp
-        return (0.5 - (pi*self.fc)**2 * (t - self.tD)**2) * exp(-(pi*self.fc)**2 * (t - self.tD)**2)\
+        from math import sin, pi
+        return (0.5 * sin(2*pi*self.fc*t))\
                 * self.gf.boundary_interpolant(t, discr, tag)

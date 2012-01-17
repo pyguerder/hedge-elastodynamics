@@ -26,6 +26,7 @@ def main(write_output=['vtu', 'receivers'],
          output_dir='output',
          pml=None,
          sources=None,
+         source_param={},
          final_time=12,
          quiet_output=True,
          nonlinearity_type=None,
@@ -45,7 +46,8 @@ def main(write_output=['vtu', 'receivers'],
     @param max_steps: None (no limit) or maximum number of steps to compute
     @param output_dir: directory where to write the output
     @param pml: None or NPML widths in this order: [x_l, y_l, z_l, x_r, y_r, z_r]
-    @param override_mesh_sources: if True, ignores the source points of the mesh file
+    @param sources: an array containing the coordinates of the source or None
+    @param source: a dict containing the parameters for the source functions
     @param final_time: number of seconds of simulations to compute
     @param quiet_output: if True, only the main thread will print information
     @param nonlinearity_type: None (linear) or 'classical' (non-linear)
@@ -144,7 +146,7 @@ def main(write_output=['vtu', 'receivers'],
 
     def source_v_y(y, el):
         y = y - source
-        return exp(-numpy.dot(y, y)*0.01)  # cos(10*pi/180)
+        return exp(-numpy.dot(y, y)/source_param['sigma']**2)  # cos(10*pi/180)
 
     def source_v_z(z, el):
         z = z - source
@@ -155,13 +157,19 @@ def main(write_output=['vtu', 'receivers'],
 
     source_x = TimeIntervalGivenFunction(
                     TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_x), fc=7.25, tD = 0.16), 0, 2)
+                        make_tdep_given(source_v_x),
+                        fc=source_param['fc'], tD = source_param['td']),
+                        source_param['begin'], source_param['end'])
     source_y = TimeIntervalGivenFunction(
                     TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_y), fc=7.25, tD = 0.16), 0, 2)
+                        make_tdep_given(source_v_y),
+                        fc=source_param['fc'], tD = source_param['td']),
+                        source_param['begin'], source_param['end'])
     source_z = TimeIntervalGivenFunction(
                     TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_z), fc=7.25, tD = 0.16), 0, 2)
+                        make_tdep_given(source_v_z),
+                        fc=source_param['fc'], tD = source_param['td']),
+                        source_param['begin'], source_param['end'])
 
     sources = { 'source_x' : source_x,
                 'source_y' : source_y,
@@ -389,7 +397,7 @@ def main(write_output=['vtu', 'receivers'],
     # Define the timestep loop ---
 
     t = 0.0
-    max_txt = ' '
+    max_txt = ''
     try:
         from hedge.timestep import times_and_steps
 
@@ -399,13 +407,15 @@ def main(write_output=['vtu', 'receivers'],
 
         for step, t, dt in step_it:
             if max_steps > 0:
-                max_txt = ' on ' + format(max_steps)
+                max_txt = ' on %d' % max_steps
                 if step > max_steps:
                     break
 
-            if step % 20 == 0:
+            if step % 400 == 0:
                 if print_output:
-                    print 'Step ' + format(step) + max_txt + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+                    print '[%s] ' % time.strftime('%H:%M:%S', time.localtime()) + \
+                          'Step: ' + format(step) + max_txt + \
+                          '; time: ' + format(t)
 
                 if 'vtu' in write_output:
                     visf = vis.make_file("fld-%04d" % step)
@@ -451,6 +461,9 @@ def main(write_output=['vtu', 'receivers'],
             #fields = mode_filter(fields)
 
     finally:
+        #import pdb
+        #pdb.set_trace()
+    
         if 'vtu' in write_output:
             vis.close()
 
