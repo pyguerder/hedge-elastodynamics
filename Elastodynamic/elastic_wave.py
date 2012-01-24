@@ -5,7 +5,7 @@ from __future__ import division
 
 __authors__ = ["Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>",
                "Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>"]
-__copyright__ = "Copyright (C) 2010-2011 the authors"
+__copyright__ = "Copyright (C) 2010-2012 the authors"
 __license__ = "GNU GPLv3 (or more recent equivalent)"
 
 
@@ -140,40 +140,33 @@ def main(write_output=['vtu', 'receivers'],
             print "and no mesh file!"
             raise Exception('Error: Could not find any source!')
 
-    def source_v_x(x, el):
-        x = x - source
+    def source_v_x(pos, el):
+        pos = pos - source
         return 0
 
-    def source_v_y(y, el):
-        y = y - source
-        return exp(-numpy.dot(y, y)/source_param['sigma']**2)  # cos(10*pi/180)
+    def source_v_y(pos, el):
+        pos_x = pos[0] - source[0]
+        pos_y = 0
+        pos = (pos_x, pos_y)
+        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)  # cos(10*pi/180)
 
-    def source_v_z(z, el):
-        z = z - source
+    def source_v_z(pos, el):
+        pos = pos - source
         return 0
 
     from libraries.functions import TimeRickerWaveletGivenFunction
     from hedge.data import make_tdep_given, TimeIntervalGivenFunction
 
-    source_x = TimeIntervalGivenFunction(
-                    TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_x),
-                        fc=source_param['fc'], tD = source_param['td']),
-                        source_param['begin'], source_param['end'])
-    source_y = TimeIntervalGivenFunction(
-                    TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_y),
-                        fc=source_param['fc'], tD = source_param['td']),
-                        source_param['begin'], source_param['end'])
-    source_z = TimeIntervalGivenFunction(
-                    TimeRickerWaveletGivenFunction(
-                        make_tdep_given(source_v_z),
-                        fc=source_param['fc'], tD = source_param['td']),
-                        source_param['begin'], source_param['end'])
+    def source_i(source_v_i):
+        return TimeIntervalGivenFunction(
+                        TimeRickerWaveletGivenFunction(
+                            make_tdep_given(source_v_i),
+                            fc=source_param['fc'], tD = source_param['td']),
+                            source_param['begin'], source_param['end'])
 
-    sources = { 'source_x' : source_x,
-                'source_y' : source_y,
-                'source_z' : source_z }
+    sources = { 'source_x' : source_i(source_v_x),
+                'source_y' : source_i(source_v_y),
+                'source_z' : source_i(source_v_z) }
 
     # End of sources definition ---
     # Define materials and link them with elements ---
@@ -268,25 +261,26 @@ def main(write_output=['vtu', 'receivers'],
 
     receivers = None
     point_receivers = []
-    i = 0
-    if mesh_file:
-        receivers = gmsh.pointReceivers
-    if receivers != []:
-        for receiver in receivers:
-            try:
-                point_receiver = Receiver()
-                point_receiver.evaluator = discr.get_point_evaluator(numpy.array(receiver))
-                point_receiver.done_dt = False
-                point_receiver.id = i
-                point_receiver.coordinates = receiver
-                point_receiver.filename = "receiver_%s_%s.txt" % (rcon.rank, point_receiver.id)
-            except:
-                if not quiet_output:
-                    print "Receiver ignored (point not found):", receiver
-            else:
-                point_receivers.append(point_receiver)
-                i += 1
-                print "Using", point_receiver.filename, "for receiver", receiver
+    if "receivers" in write_output:
+        i = 0
+        if mesh_file:
+            receivers = gmsh.pointReceivers
+        if receivers != []:
+            for receiver in receivers:
+                try:
+                    point_receiver = Receiver()
+                    point_receiver.evaluator = discr.get_point_evaluator(numpy.array(receiver))
+                    point_receiver.done_dt = False
+                    point_receiver.id = i
+                    point_receiver.coordinates = receiver
+                    point_receiver.filename = "receiver_%s_%s.txt" % (rcon.rank, point_receiver.id)
+                except:
+                    if not quiet_output:
+                        print "Receiver ignored (point not found):", receiver
+                else:
+                    point_receivers.append(point_receiver)
+                    i += 1
+                    print "Using", point_receiver.filename, "for receiver", receiver
 
     # End of receivers definition ---
     # Define timestepping and fields ---
@@ -364,6 +358,7 @@ def main(write_output=['vtu', 'receivers'],
     if 'receivers' in write_output:
         for point_receiver in point_receivers:
             point_receiver.pointfile = open(point_receiver.filename, "wt")
+        sumfile = open("receiver_%s_sum.txt" % rcon.rank, "wt")
 
     logmgr = LogManager(log_file_name, "w", rcon.communicator)
     add_run_info(logmgr)
@@ -412,6 +407,12 @@ def main(write_output=['vtu', 'receivers'],
                     break
 
             if step % 400 == 0:
+                variables = [("v", discr.convert_volume(v(), "numpy")),
+                             ("F", discr.convert_volume(f(), "numpy"))]
+                if pml:
+                    f_2 = ("F2", discr.convert_volume(f2(), "numpy"))
+                    variables.append(f_2)
+
                 if print_output:
                     print '[%s] ' % time.strftime('%H:%M:%S', time.localtime()) + \
                           'Step: ' + format(step) + max_txt + \
@@ -419,25 +420,19 @@ def main(write_output=['vtu', 'receivers'],
 
                 if 'vtu' in write_output:
                     visf = vis.make_file("fld-%04d" % step)
-                    variables = [("v", discr.convert_volume(v(), "numpy")),
-                                 ("F", discr.convert_volume(f(), "numpy"))]
-                    if pml:
-                        f_2 = ("F2", discr.convert_volume(f2(), "numpy"))
-                        variables.append(f_2)
                     vis.add_data(visf, variables, time=t, step=step)
                     visf.close()
 
                 if 'txt' in write_output:
-                    variables = [("v", discr.convert_volume(v(), "numpy")),
-                                 ("F", discr.convert_volume(f(), "numpy"))]
-                    if pml:
-                        f_2 = ("F2", discr.convert_volume(f2(), "numpy"))
-                        variables.append(f_2)
                     write_datafile("fld-%04d" % step, variables)
 
             if 'receivers' in write_output:
+                variables = discr.convert_volume(fields, "numpy")
+
+                sum_val = numpy.zeros(len(fields))
+                sumfile.write("\n%s " % format(t))
                 for point_receiver in point_receivers:
-                    val = point_receiver.evaluator(fields)
+                    val = point_receiver.evaluator(variables)
                     if not point_receiver.done_dt:
                         point_receiver.pointfile.write("# dt: %g s\n" % dt)
                         point_receiver.pointfile.write("# v: %d fields\n" % dim)
@@ -455,7 +450,10 @@ def main(write_output=['vtu', 'receivers'],
                         point_receiver.done_dt = True
                     point_receiver.pointfile.write("\n%s " % format(t))
                     for i in range(len(val)):
+                        sum_val[i] += val[i]
                         point_receiver.pointfile.write("%s " % format(val[i]))
+                for i in range(len(val)):
+                    sumfile.write("%s " % format(sum_val[i]))
 
             fields = stepper(fields, t, dt, rhs)
             #fields = mode_filter(fields)
@@ -470,6 +468,7 @@ def main(write_output=['vtu', 'receivers'],
         if 'receivers' in write_output:
             for point_receiver in point_receivers:
                 point_receiver.pointfile.close()
+            sumfile.close()
 
         logmgr.close()
         discr.close()
