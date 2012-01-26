@@ -175,8 +175,8 @@ def main(write_output=['vtu', 'receivers'],
     constants = ['Density', 'LinearElasticConstants']
     if nonlinearity_type is not None:
         constants.append('NonlinearElasticConstants')
-    for file in material_files:
-        material = Material(file, constants, dtype, print_output)
+    for material_file in material_files:
+        material = Material(material_file, constants, dtype, print_output)
         if nonlinearity_type is not None:
             # In the nonlinear mode, materials MUST have a nonlinear constants
             assert material.Cnl is not None, "Error: Missing nonlinear constants in " + file
@@ -343,40 +343,13 @@ def main(write_output=['vtu', 'receivers'],
     if 'vtu' in write_output:
         vis = VtkVisualizer(discr, rcon, 'fld')
 
-    from pytools.log import LogManager, \
-            add_general_quantities, \
-            add_simulation_quantities, \
-            add_run_info
-
     if output_dir:
         chdir(output_dir)
-
-    log_file_name = None
-    if 'vtu' in write_output:
-        log_file_name = 'elastic_wave.dat'
 
     if 'receivers' in write_output:
         for point_receiver in point_receivers:
             point_receiver.pointfile = open(point_receiver.filename, "wt")
         sumfile = open("receiver_%s_sum.txt" % rcon.rank, "wt")
-
-    logmgr = LogManager(log_file_name, "w", rcon.communicator)
-    add_run_info(logmgr)
-    add_general_quantities(logmgr)
-    add_simulation_quantities(logmgr)
-    discr.add_instrumentation(logmgr)
-
-    from pytools.log import IntervalTimer
-    vis_timer = IntervalTimer("t_vis", "Time spent visualizing")
-    logmgr.add_quantity(vis_timer)
-    stepper.add_instrumentation(logmgr)
-
-    from hedge.log import LpNorm
-    u_getter = lambda: fields[0]
-    logmgr.add_quantity(LpNorm(u_getter, discr, 1, name="l1_u"))
-    logmgr.add_quantity(LpNorm(u_getter, discr, 1, name="l2_u"))
-
-    logmgr.add_watches(["step.max", "t_sim.max", "l2_u", "t_step.max"])
 
     # End of visualization definition ---
     # Bind the operator to the discretization ---
@@ -397,7 +370,7 @@ def main(write_output=['vtu', 'receivers'],
         from hedge.timestep import times_and_steps
 
         step_it = times_and_steps(final_time=final_time,
-                                  logmgr=None, #None or logmgr
+                                  logmgr=None,
                                   max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
 
         for step, t, dt in step_it:
@@ -415,8 +388,7 @@ def main(write_output=['vtu', 'receivers'],
 
                 if print_output:
                     print '[%s] ' % time.strftime('%H:%M:%S', time.localtime()) + \
-                          'Step: ' + format(step) + max_txt + \
-                          '; time: ' + format(t)
+                          'Step: ' + format(step) + max_txt + '; time: ' + format(t)
 
                 if 'vtu' in write_output:
                     visf = vis.make_file("fld-%04d" % step)
@@ -470,7 +442,6 @@ def main(write_output=['vtu', 'receivers'],
                 point_receiver.pointfile.close()
             sumfile.close()
 
-        logmgr.close()
         discr.close()
         if output_dir:
             chdir('..')
