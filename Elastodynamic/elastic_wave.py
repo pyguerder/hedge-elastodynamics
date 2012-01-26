@@ -289,28 +289,23 @@ def main(write_output=['vtu', 'receivers'],
     stepper = LSRK4TimeStepper(dtype=dtype)
 
     fields = None
-
-    def material():
-        if fields is not None:
-            return fields[0:1]
-        return [discr.volume_zeros(dtype=dtype)]
     
     def v():
         if fields is not None:
-            return fields[1:dim+1]
+            return fields[0:dim]
         return [discr.volume_zeros(dtype=dtype) for _ in range(dim)]
     
     def f():
         if fields is not None:
-            return fields[dim+1:dim+op.dimF[dim]+1]
+            return fields[dim:dim+op.dimF[dim]]
         return [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])]
     
     def f2():
         if fields is not None:
-            return fields[dim+op.dimF[dim]+1:dim+op.dimF[dim]+dim*dim*2+1]
+            return fields[dim+op.dimF[dim]:dim+op.dimF[dim]+dim*dim*2]
         return [discr.volume_zeros(dtype=dtype) for _ in range(dim*dim*2)]
 
-    fields_list = [material(), v(), f()]
+    fields_list = [v(), f()]
     if pml:
         fields_list.append(f2())
 
@@ -373,7 +368,9 @@ def main(write_output=['vtu', 'receivers'],
     max_txt = ''
     try:
         from hedge.timestep import times_and_steps
-        step_it = times_and_steps(final_time=final_time, logmgr=None,
+
+        step_it = times_and_steps(final_time=final_time,
+                                  logmgr=None,
                                   max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
 
         for step, t, dt in step_it:
