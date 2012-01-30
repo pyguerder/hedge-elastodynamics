@@ -26,11 +26,12 @@ simulation(write_output=['vtu', 'receivers', 'txt'],
            output_dir='output',
            pml=[400, 400, 0, 400, 400, 0],
            sources=numpy.array([800.0,0.0]),
-           source_param={'sigma':10, 'fc':7.25, 'td':0.16, 'begin':0, 'end':2},
+           source_param={'type': 'Ricker', 'sigma':10, 'fc':7.25, 'td':0.16, 'begin':0, 'end':2},
            final_time=1,
            quiet_output=True,
            nonlinearity_type=None,
            mesh_file = 'Meshes/Rectangle.msh',
            periodicity = [None, None],
-           material_files = ['Materials/ex2ddir.dat', 'Materials/ex2ddir.dat', 'Materials/ex2ddir.dat'])
+           material_files = ['Materials/ex2ddir.dat', 'Materials/ex2ddir.dat', 'Materials/ex2ddir.dat'],
+           vtu_every=100)
 

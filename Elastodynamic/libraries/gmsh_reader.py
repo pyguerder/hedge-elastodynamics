@@ -54,9 +54,17 @@ class GmshReader:
         self.pointSources = self.Get_Points('PointSource')
         self.internalBoundaries = self.Get_Lines('MyLine')
         self.pointReceivers.extend(self.Get_Points_of_Lines('LineReceivers'))
-        self.materials = \
-            {'mat1' : self.Get_Surfaces('mat1'), 
-             'mat2' : self.Get_Surfaces('mat2')}
+
+        if dim == 1:
+            self.materials = \
+                {'mat1' : self.Get_Lines('mat1'), 
+                 'mat2' : self.Get_Lines('mat2'),
+                 'mat3' : self.Get_Lines('mat3')}
+        else:
+            self.materials = \
+                {'mat1' : self.Get_Surfaces('mat1'), 
+                 'mat2' : self.Get_Surfaces('mat2'),
+                 'mat3' : self.Get_Surfaces('mat3')}
 
         # close file
         self.file.close()

@@ -32,7 +32,8 @@ def main(write_output=['vtu', 'receivers'],
          nonlinearity_type=None,
          mesh_file='',
          periodicity=None,
-         material_files=None):
+         material_files=None,
+         vtu_every=20):
     """
     Parameters:
     @param write_output: output data, among 'vtu', 'receivers' and 'txt'
@@ -54,6 +55,7 @@ def main(write_output=['vtu', 'receivers'],
     @param mesh_file: the file to use as a mesh, or '' in 1D
     @param periodicity: the names of the boundaries to stick together, or None
     @param material_files: array, the material files (.dat) to use
+    @param vtu_every: n, to write a vtu file every n steps
     """
 
     from os import access, makedirs, chdir, F_OK
@@ -142,27 +144,32 @@ def main(write_output=['vtu', 'receivers'],
 
     def source_v_x(pos, el):
         pos = pos - source
-        return 0
+        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)
 
     def source_v_y(pos, el):
-        pos_x = pos[0] - source[0]
-        pos_y = 0
-        pos = (pos_x, pos_y)
-        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)  # cos(10*pi/180)
+        pos = pos - source
+        return 0
 
     def source_v_z(pos, el):
         pos = pos - source
         return 0
 
-    from libraries.functions import TimeRickerWaveletGivenFunction
-    from hedge.data import make_tdep_given, TimeIntervalGivenFunction
+    source_type = None
+    if source_param['type'] == 'sinus':
+        from libraries.functions import SinusGivenFunction
+        source_type = 'SinusGivenFunction'
+    elif source_param['type'] == 'Ricker':
+        from libraries.functions import TimeRickerWaveletGivenFunction
+        source_type = 'TimeRickerWaveletGivenFunction'
+    assert source_type is not None, "Failed to define source function!"
+    source_function = locals()[source_type]
 
+    from hedge.data import make_tdep_given, TimeIntervalGivenFunction
     def source_i(source_v_i):
         return TimeIntervalGivenFunction(
-                        TimeRickerWaveletGivenFunction(
-                            make_tdep_given(source_v_i),
-                            fc=source_param['fc'], tD = source_param['td']),
-                            source_param['begin'], source_param['end'])
+                   source_function(make_tdep_given(source_v_i),
+                                   source_param['fc'], source_param['td']),
+                   source_param['begin'], source_param['end'])
 
     sources = { 'source_x' : source_i(source_v_x),
                 'source_y' : source_i(source_v_y),
@@ -259,7 +266,7 @@ def main(write_output=['vtu', 'receivers'],
     # End of discretization definition ---
     # Define receivers ---
 
-    receivers = None
+    receivers = []
     point_receivers = []
     if "receivers" in write_output:
         i = 0
@@ -356,7 +363,7 @@ def main(write_output=['vtu', 'receivers'],
 
     if pml is not None:
         coefficients = op.coefficients_from_width(discr, mesh,
-                            widths=pml, material=materials[0], alpha_magnitude=2*pi*0.7)
+                            widths=pml, material=materials[0], alpha_magnitude=2*pi*source_param['fc']/10)
         rhs = op.bind(discr, coefficients)
     else:
         rhs = op.bind(discr)
@@ -379,7 +386,7 @@ def main(write_output=['vtu', 'receivers'],
                 if step > max_steps:
                     break
 
-            if step % 400 == 0:
+            if step % vtu_every == 0:
                 variables = [("v", discr.convert_volume(v(), "numpy")),
                              ("F", discr.convert_volume(f(), "numpy"))]
                 if pml:

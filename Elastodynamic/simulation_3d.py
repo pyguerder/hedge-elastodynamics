@@ -26,10 +26,12 @@ simulation(write_output=['vtu', 'receivers'],
            output_dir='output',
            pml=[0, 0, 0, 500, 0, 0],
            sources=numpy.array([1000.0,0.0,0.0]),
+           source_param={'type': 'Ricker', 'sigma':10, 'fc':7.25, 'td':0.16, 'begin':0, 'end':2},
            final_time=12,
            quiet_output=True,
            nonlinearity_type=None,
            mesh_file = 'Meshes/HeterogeneousPeriodicCube.msh',
            periodicity = [None, None, None],
-           material_files = ['Materials/aluminium.dat', 'Materials/calcite.dat'])
+           material_files = ['Materials/aluminium.dat', 'Materials/calcite.dat'],
+           vtu_every=40)
 

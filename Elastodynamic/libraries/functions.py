@@ -22,9 +22,29 @@ along with this program.  If not, see U{http://www.gnu.org/licenses/}.
 
 from hedge.data import ITimeDependentGivenFunction 
 
+
 class TimeRickerWaveletGivenFunction(ITimeDependentGivenFunction):
     """Modulates an :class:`ITimeDependentGivenFunction` by a Ricker Wavelet
     in time.
+    """
+    def __init__(self, gf, fc, tD):
+        self.gf = gf
+        self.fc = fc
+        self.tD = tD
+
+    def volume_interpolant(self, t, discr):
+        from math import exp, pi
+        return (0.5 - (pi*self.fc)**2 * (t - self.tD)**2) * exp(-(pi*self.fc)**2 * (t - self.tD)**2)\
+                * self.gf.volume_interpolant(t, discr)
+
+    def boundary_interpolant(self, t, discr, tag):
+        from math import exp, pi
+        return (0.5 - (pi*self.fc)**2 * (t - self.tD)**2) * exp(-(pi*self.fc)**2 * (t - self.tD)**2)\
+                * self.gf.boundary_interpolant(t, discr, tag)
+
+
+class SinusGivenFunction(ITimeDependentGivenFunction):
+    """Modulates an :class:`ITimeDependentGivenFunction` by a sinus in time.
     """
     def __init__(self, gf, fc, tD):
         self.gf = gf
