@@ -144,11 +144,13 @@ def main(write_output=['vtu', 'receivers'],
 
     def source_v_x(pos, el):
         pos = pos - source
-        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)
+        return 0
 
     def source_v_y(pos, el):
-        pos = pos - source
-        return 0
+        pos_x = pos[0] - source[0]
+        pos_y = 0
+        pos = (pos_x, pos_y)
+        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)  # cos(10*pi/180)
 
     def source_v_z(pos, el):
         pos = pos - source
@@ -296,23 +298,28 @@ def main(write_output=['vtu', 'receivers'],
     stepper = LSRK4TimeStepper(dtype=dtype)
 
     fields = None
+
+    def m():
+        if fields is not None:
+            return fields[0]
+        return [discr.volume_zeros(dtype=dtype)]
     
     def v():
         if fields is not None:
-            return fields[0:dim]
+            return fields[1:dim+1]
         return [discr.volume_zeros(dtype=dtype) for _ in range(dim)]
     
     def f():
         if fields is not None:
-            return fields[dim:dim+op.dimF[dim]]
-        return [discr.volume_zeros(dtype=dtype) for _ in range(op.dimF[dim])]
-    
+            return fields[dim+1:dim+op.len_f+1]
+        return [discr.volume_zeros(dtype=dtype) for _ in range(op.len_f)]
+
     def f2():
         if fields is not None:
-            return fields[dim+op.dimF[dim]:dim+op.dimF[dim]+dim*dim*2]
+            return fields[dim+op.len_f+1:dim+op.len_f+op.len_f2+1]
         return [discr.volume_zeros(dtype=dtype) for _ in range(dim*dim*2)]
 
-    fields_list = [v(), f()]
+    fields_list = [m(), v(), f()]
     if pml:
         fields_list.append(f2())
 
@@ -375,9 +382,7 @@ def main(write_output=['vtu', 'receivers'],
     max_txt = ''
     try:
         from hedge.timestep import times_and_steps
-
-        step_it = times_and_steps(final_time=final_time,
-                                  logmgr=None,
+        step_it = times_and_steps(final_time=final_time, logmgr=None,
                                   max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
 
         for step, t, dt in step_it:
@@ -387,14 +392,12 @@ def main(write_output=['vtu', 'receivers'],
                     break
 
             if step % vtu_every == 0:
-                variables = [("v", discr.convert_volume(v(), "numpy")),
+                variables = [("m", discr.convert_volume(m(), "numpy")),
+                             ("v", discr.convert_volume(v(), "numpy")),
                              ("F", discr.convert_volume(f(), "numpy"))]
-                if pml:
-                    f_2 = ("F2", discr.convert_volume(f2(), "numpy"))
-                    variables.append(f_2)
 
                 if print_output:
-                    print '[%s] ' % time.strftime('%H:%M:%S', time.localtime()) + \
+                    print time.strftime('[%H:%M:%S] ', time.localtime()) + \
                           'Step: ' + format(step) + max_txt + '; time: ' + format(t)
 
                 if 'vtu' in write_output:
@@ -415,17 +418,12 @@ def main(write_output=['vtu', 'receivers'],
                     if not point_receiver.done_dt:
                         point_receiver.pointfile.write("# dt: %g s\n" % dt)
                         point_receiver.pointfile.write("# v: %d fields\n" % dim)
-                        point_receiver.pointfile.write("# F: %d fields\n" % op.dimF[dim])
-                        if pml:
-                            point_receiver.pointfile.write("# F2: %d fields\n" % (dim*dim*2))
+                        point_receiver.pointfile.write("# F: %d fields\n" % op.len_f)
                         point_receiver.pointfile.write("# Coordinates: %s\nt " % repr(point_receiver.coordinates))
                         for i in range(dim):
                             point_receiver.pointfile.write('v%s ' % i)
-                        for i in range(op.dimF[dim]):
+                        for i in range(op.len_f):
                             point_receiver.pointfile.write("F%s " % i)
-                        if pml:
-                            for i in range(dim*dim*2):
-                                point_receiver.pointfile.write("F''%s " % i)
                         point_receiver.done_dt = True
                     point_receiver.pointfile.write("\n%s " % format(t))
                     for i in range(len(val)):
