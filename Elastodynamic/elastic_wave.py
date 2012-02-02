@@ -144,13 +144,11 @@ def main(write_output=['vtu', 'receivers'],
 
     def source_v_x(pos, el):
         pos = pos - source
-        return 0
+        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)
 
     def source_v_y(pos, el):
-        pos_x = pos[0] - source[0]
-        pos_y = 0
-        pos = (pos_x, pos_y)
-        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)  # cos(10*pi/180)
+        pos = pos - source
+        return 0
 
     def source_v_z(pos, el):
         pos = pos - source
@@ -336,20 +334,26 @@ def main(write_output=['vtu', 'receivers'],
         if rcon is not None and len(rcon.ranks) > 1:
             filename += "-%04d" % rcon.rank
         visfile = open(filename + ".txt", "wt")
-        visfile.write("t\t")
+        visfile.write("x\ty\t")
         for name, field in variables:
-            i = 0
-            for subvect in field:
-                i += 1
-                assert len(subvect) == len(discr.nodes), "Wrong length!"
-                visfile.write(name + "_" + format(i) + "\t")
+            if name == "m":
+                visfile.write("m\t")
+            else:
+                i = 0
+                for subvect in field:
+                    i += 1
+                    assert len(subvect) == len(discr.nodes), "Wrong length!"
+                    visfile.write(name + "_" + format(i) + "\t")
         visfile.write("\n")
         for i in range(len(discr.nodes)):
             for coord in discr.nodes[i]:
                 visfile.write(format(coord) + "\t")
             for name, field in variables:
-                for subvect in field:
-                    visfile.write(format(subvect[i]) + "\t")
+                if name == "m":
+                    visfile.write(format(field[i]) + "\t")
+                else:
+                    for subvect in field:
+                        visfile.write(format(subvect[i]) + "\t")
             visfile.write("\n")
         visfile.close()
 

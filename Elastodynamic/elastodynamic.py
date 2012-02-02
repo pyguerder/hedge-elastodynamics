@@ -585,7 +585,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         ElastoDynamicsOperator.__init__(self, *args, **kwargs)
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[self.dimensions]
-        self.len_q = self.dimensions+self.dimF[self.dimensions]+1
+        self.len_q = self.dimensions+self.len_f+1
         self.len_f2 = self.dimensions*self.dimensions*2
 
     def F2(self, w):
@@ -935,7 +935,7 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         NLElastoDynamicsOperator.__init__(self, *args, **kwargs)
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[self.dimensions]
-        self.len_q = self.dimensions+self.dimF[self.dimensions]+1
+        self.len_q = self.dimensions+self.len_f+1
         self.len_f2 = self.dimensions*self.dimensions*2
 
     def flux(self, w, k):
