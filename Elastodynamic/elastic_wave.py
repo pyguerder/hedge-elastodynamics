@@ -144,12 +144,14 @@ def main(write_output=['vtu', 'receivers'],
 
     def source_v_x(pos, el):
         pos = pos - source
-        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)
-
-    def source_v_y(pos, el):
-        pos = pos - source
         return 0
 
+    def source_v_y(pos, el):
+        pos_x = pos[0] - source[0]
+        pos_y = 0
+        pos = (pos_x, pos_y)
+        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)  # cos(10*pi/180)
+ 
     def source_v_z(pos, el):
         pos = pos - source
         return 0
@@ -412,7 +414,7 @@ def main(write_output=['vtu', 'receivers'],
                 if 'txt' in write_output:
                     write_datafile("fld-%04d" % step, variables)
 
-            if 'receivers' in write_output:
+            if 'receivers' in write_output and point_receivers != []:
                 variables = discr.convert_volume(fields, "numpy")
 
                 sum_val = numpy.zeros(len(fields))
