@@ -13,4 +13,4 @@ To run the simulation, define the parameters in elastic_wave.py and run:
 ./rm-vis && python elastic_wave.py
 
 To regenerate the documentation, run:
-epydoc --graph=all *.py
+epydoc --graph=all elastodynamic.py elastic_wave.py

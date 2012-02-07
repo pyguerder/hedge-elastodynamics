@@ -64,7 +64,7 @@
         </dd>
       </dl>
       <p><strong>Copyright:</strong>
-        Copyright (C) 2010-2011 the authors
+        Copyright (C) 2010-2012 the authors
       </p>
       <p><strong>License:</strong>
         GNU GPLv3 (or more recent equivalent)
@@ -92,23 +92,26 @@
     </td><td class="summary">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td><span class="summary-sig"><a href="elastic_wave-module.html#main" class="summary-sig-name">main</a>(<span class="summary-sig-arg">write_output</span>=<span class="summary-sig-default">True</span>,
-        <span class="summary-sig-arg">allow_features</span>=<span class="summary-sig-default"><code class="variable-quote">'</code><code class="variable-string">mpi</code><code class="variable-quote">'</code></span>,
+          <td><span class="summary-sig"><a href="elastic_wave-module.html#main" class="summary-sig-name">main</a>(<span class="summary-sig-arg">write_output</span>=<span class="summary-sig-default"><code class="variable-group">[</code><code class="variable-quote">'</code><code class="variable-string">vtu</code><code class="variable-quote">'</code><code class="variable-op">, </code><code class="variable-quote">'</code><code class="variable-string">receivers</code><code class="variable-quote">'</code><code class="variable-group">]</code></span>,
+        <span class="summary-sig-arg">allow_features</span>=<span class="summary-sig-default"><code class="variable-quote">'</code><code class="variable-string"></code><code class="variable-quote">'</code></span>,
         <span class="summary-sig-arg">dim</span>=<span class="summary-sig-default">2</span>,
         <span class="summary-sig-arg">order</span>=<span class="summary-sig-default">4</span>,
         <span class="summary-sig-arg">stfree_tag</span>=<span class="summary-sig-default">&lt;class 'hedge.mesh.TAG_NONE'&gt;</span>,
         <span class="summary-sig-arg">fix_tag</span>=<span class="summary-sig-default">&lt;class 'hedge.mesh.TAG_ALL'&gt;</span>,
         <span class="summary-sig-arg">op_tag</span>=<span class="summary-sig-default">&lt;class 'hedge.mesh.TAG_NONE'&gt;</span>,
         <span class="summary-sig-arg">flux_type</span>=<span class="summary-sig-default"><code class="variable-quote">'</code><code class="variable-string">lf</code><code class="variable-quote">'</code></span>,
-        <span class="summary-sig-arg">debug</span>=<span class="summary-sig-default"><code class="variable-group">[</code><code class="variable-group">]</code></span>,
-        <span class="summary-sig-arg">dtype</span>=<span class="summary-sig-default">&lt;type 'numpy.float64'&gt;</span>,
         <span class="summary-sig-arg">max_steps</span>=<span class="summary-sig-default">None</span>,
         <span class="summary-sig-arg">output_dir</span>=<span class="summary-sig-default"><code class="variable-quote">'</code><code class="variable-string">output</code><code class="variable-quote">'</code></span>,
-        <span class="summary-sig-arg">pml</span>=<span class="summary-sig-default">True</span>,
-        <span class="summary-sig-arg">override_mesh_sources</span>=<span class="summary-sig-default">False</span>,
+        <span class="summary-sig-arg">pml</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">sources</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">source_param</span>=<span class="summary-sig-default"><code class="variable-group">{</code><code class="variable-group">}</code></span>,
         <span class="summary-sig-arg">final_time</span>=<span class="summary-sig-default">12</span>,
         <span class="summary-sig-arg">quiet_output</span>=<span class="summary-sig-default">True</span>,
-        <span class="summary-sig-arg">nonlinearity_type</span>=<span class="summary-sig-default">None</span>)</span><br />
+        <span class="summary-sig-arg">nonlinearity_type</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">mesh_file</span>=<span class="summary-sig-default"><code class="variable-quote">'</code><code class="variable-string"></code><code class="variable-quote">'</code></span>,
+        <span class="summary-sig-arg">periodicity</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">material_files</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">vtu_every</span>=<span class="summary-sig-default">20</span>)</span><br />
       Parameters:</td>
           <td align="right" valign="top">
             <span class="codelink"><a href="elastic_wave-pysrc.html#main">source&nbsp;code</a></span>
@@ -170,23 +173,26 @@
 <tr><td>
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr valign="top"><td>
-  <h3 class="epydoc"><span class="sig"><span class="sig-name">main</span>(<span class="sig-arg">write_output</span>=<span class="sig-default">True</span>,
-        <span class="sig-arg">allow_features</span>=<span class="sig-default"><code class="variable-quote">'</code><code class="variable-string">mpi</code><code class="variable-quote">'</code></span>,
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">main</span>(<span class="sig-arg">write_output</span>=<span class="sig-default"><code class="variable-group">[</code><code class="variable-quote">'</code><code class="variable-string">vtu</code><code class="variable-quote">'</code><code class="variable-op">, </code><code class="variable-quote">'</code><code class="variable-string">receivers</code><code class="variable-quote">'</code><code class="variable-group">]</code></span>,
+        <span class="sig-arg">allow_features</span>=<span class="sig-default"><code class="variable-quote">'</code><code class="variable-string"></code><code class="variable-quote">'</code></span>,
         <span class="sig-arg">dim</span>=<span class="sig-default">2</span>,
         <span class="sig-arg">order</span>=<span class="sig-default">4</span>,
         <span class="sig-arg">stfree_tag</span>=<span class="sig-default">&lt;class 'hedge.mesh.TAG_NONE'&gt;</span>,
         <span class="sig-arg">fix_tag</span>=<span class="sig-default">&lt;class 'hedge.mesh.TAG_ALL'&gt;</span>,
         <span class="sig-arg">op_tag</span>=<span class="sig-default">&lt;class 'hedge.mesh.TAG_NONE'&gt;</span>,
         <span class="sig-arg">flux_type</span>=<span class="sig-default"><code class="variable-quote">'</code><code class="variable-string">lf</code><code class="variable-quote">'</code></span>,
-        <span class="sig-arg">debug</span>=<span class="sig-default"><code class="variable-group">[</code><code class="variable-group">]</code></span>,
-        <span class="sig-arg">dtype</span>=<span class="sig-default">&lt;type 'numpy.float64'&gt;</span>,
         <span class="sig-arg">max_steps</span>=<span class="sig-default">None</span>,
         <span class="sig-arg">output_dir</span>=<span class="sig-default"><code class="variable-quote">'</code><code class="variable-string">output</code><code class="variable-quote">'</code></span>,
-        <span class="sig-arg">pml</span>=<span class="sig-default">True</span>,
-        <span class="sig-arg">override_mesh_sources</span>=<span class="sig-default">False</span>,
+        <span class="sig-arg">pml</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">sources</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">source_param</span>=<span class="sig-default"><code class="variable-group">{</code><code class="variable-group">}</code></span>,
         <span class="sig-arg">final_time</span>=<span class="sig-default">12</span>,
         <span class="sig-arg">quiet_output</span>=<span class="sig-default">True</span>,
-        <span class="sig-arg">nonlinearity_type</span>=<span class="sig-default">None</span>)</span>
+        <span class="sig-arg">nonlinearity_type</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">mesh_file</span>=<span class="sig-default"><code class="variable-quote">'</code><code class="variable-string"></code><code class="variable-quote">'</code></span>,
+        <span class="sig-arg">periodicity</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">material_files</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">vtu_every</span>=<span class="sig-default">20</span>)</span>
   </h3>
   </td><td align="right" valign="top"
     ><span class="codelink"><a href="elastic_wave-pysrc.html#main">source&nbsp;code</a></span>&nbsp;
@@ -197,7 +203,7 @@
   <dl class="fields">
     <dt>Parameters:</dt>
     <dd><ul class="nomargin-top">
-        <li><strong class="pname"><code>write_output</code></strong> - whether to write (True) visualization files or not (False)</li>
+        <li><strong class="pname"><code>write_output</code></strong> - output data, among 'vtu', 'receivers' and 'txt'</li>
         <li><strong class="pname"><code>allow_features</code></strong> - 'mpi' or 'cuda'</li>
         <li><strong class="pname"><code>dim</code></strong> - 1, 2 or 3</li>
         <li><strong class="pname"><code>order</code></strong> - the order of the method</li>
@@ -205,15 +211,18 @@
         <li><strong class="pname"><code>fix_tag</code></strong> - which elements to mark as fixed boundaries</li>
         <li><strong class="pname"><code>op_tag</code></strong> - which elements to mark as open boundaries</li>
         <li><strong class="pname"><code>flux_type</code></strong> - 'lf' (Lax-Freidrich flux) or 'central'</li>
-        <li><strong class="pname"><code>debug</code></strong> - debug parameters to use in make_discretization()</li>
-        <li><strong class="pname"><code>dtype</code></strong> - defaults to float64, automatically reduced to float32 for cuda</li>
         <li><strong class="pname"><code>max_steps</code></strong> - None (no limit) or maximum number of steps to compute</li>
         <li><strong class="pname"><code>output_dir</code></strong> - directory where to write the output</li>
-        <li><strong class="pname"><code>pml</code></strong> - True or False, to enable or disable the NPML</li>
-        <li><strong class="pname"><code>override_mesh_sources</code></strong> - if True, ignores the source points of the mesh file</li>
+        <li><strong class="pname"><code>pml</code></strong> - None or NPML widths in this order: [x_l, y_l, z_l, x_r, y_r, z_r]</li>
+        <li><strong class="pname"><code>sources</code></strong> - an array containing the coordinates of the source or None</li>
+        <li><strong class="pname"><code>source</code></strong> - a dict containing the parameters for the source functions</li>
         <li><strong class="pname"><code>final_time</code></strong> - number of seconds of simulations to compute</li>
         <li><strong class="pname"><code>quiet_output</code></strong> - if True, only the main thread will print information</li>
         <li><strong class="pname"><code>nonlinearity_type</code></strong> - None (linear) or 'classical' (non-linear)</li>
+        <li><strong class="pname"><code>mesh_file</code></strong> - the file to use as a mesh, or '' in 1D</li>
+        <li><strong class="pname"><code>periodicity</code></strong> - the names of the boundaries to stick together, or None</li>
+        <li><strong class="pname"><code>material_files</code></strong> - array, the material files (.dat) to use</li>
+        <li><strong class="pname"><code>vtu_every</code></strong> - n, to write a vtu file every n steps</li>
     </ul></dd>
   </dl>
 </td></tr></table>
@@ -242,7 +251,7 @@
 <table border="0" cellpadding="0" cellspacing="0" width="100%%">
   <tr>
     <td align="left" class="footer">
-    Generated by Epydoc 3.0.1 on Fri Jul 29 15:51:33 2011
+    Generated by Epydoc 3.0.1 on Tue Feb  7 16:03:31 2012
     </td>
     <td align="right" class="footer">
       <a target="mainFrame" href="http://epydoc.sourceforge.net"
