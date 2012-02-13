@@ -163,31 +163,31 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         # One entry for each flux direction
         if dim == 1:
             return [cse(join_fields(
-                        0,
+                        v_null,
                         P[0],  # flux rho_v
                         v[0]   # flux F
                         ), "x_flux")]
 
         elif dim == 2:
             return [cse(join_fields(
-                        0, P[0],P[2],    # flux rho_v
-                        v[0],v_null,v[1] # flux F
+                        v_null, P[0],P[2],# flux rho_v
+                        v[0],v_null,v[1]  # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, P[2],P[1],    # flux rho_v
-                        v_null,v[1],v[0] # flux F
+                        v_null, P[2],P[1],# flux rho_v
+                        v_null,v[1],v[0]  # flux F
                         ), "y_flux")]
         elif dim == 3:
             return [cse(join_fields(
-                        0, P[0],P[5],P[4],                  # flux rho_v
+                        v_null, P[0],P[5],P[4],             # flux rho_v
                         v[0],v_null,v_null,v_null,v[2],v[1] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, P[5],P[1],P[3],                  # flux rho_v
+                        v_null, P[5],P[1],P[3],             # flux rho_v
                         v_null,v[1],v_null,v[2],v_null,v[0] # flux F
                         ), "y_flux"),
                     cse(join_fields(
-                        0, P[4],P[3],P[2],                  # flux rho_v
+                        v_null, P[4],P[3],P[2],             # flux rho_v
                         v_null,v_null,v[2],v[1],v[0],v_null # flux F
                         ), "z_flux")]
         else:
@@ -215,30 +215,30 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         # One entry for each flux direction
         if dim == 1:
             return [cse(join_fields(
-                        0,
+                        v_null,
                         signP*P[0], # flux rho_v
                         signv*v[0]  # flux F
                         ), "x_bflux")]
         elif dim == 2:
             return [cse(join_fields(
-                        0, signP*P[0],signP*P[2],     # flux rho_v
+                        v_null, signP*P[0],signP*P[2],# flux rho_v
                         signv*v[0],v_null,signv*v[1]  # flux F
                         ), "x_bflux"),
                     cse(join_fields(
-                        0, signP*P[2],signP*P[1],     # flux rho_v
+                        v_null, signP*P[2],signP*P[1],# flux rho_v
                         v_null,signv*v[1],signv*v[0]  # flux F
                         ), "y_bflux")]
         elif dim == 3:
             return [cse(join_fields(
-                        0, signP*P[0],signP*P[5],signP*P[4],                  # flux rho_v
+                        v_null, signP*P[0],signP*P[5],signP*P[4],             # flux rho_v
                         signv*v[0],v_null,v_null,v_null,signv*v[2],signv*v[1] # flux F
                         ), "x_bflux"),
                     cse(join_fields(
-                        0, signP*P[5],signP*P[1],signP*P[3],                  # flux rho_v
+                        v_null, signP*P[5],signP*P[1],signP*P[3],             # flux rho_v
                         v_null,signv*v[1],v_null,signv*v[2],v_null,signv*v[0] # flux F
                         ), "y_bflux"),
                     cse(join_fields(
-                        0, signP*P[4],signP*P[3],signP*P[2],                  # flux rho_v
+                        v_null, signP*P[4],signP*P[3],signP*P[2],             # flux rho_v
                         v_null,v_null,signv*v[2],signv*v[1],signv*v[0],v_null # flux F
                         ), "z_bflux")]
         else:
@@ -486,30 +486,30 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         # One entry for each flux direction
         if dim == 1:
             return [cse(join_fields(
-                        0,
+                        v_null,
                         P[0],  # flux rho_v
                         v[0]   # flux F
                         ), "x_flux")]
         elif dim == 2:
             return [cse(join_fields(
-                        0, P[0],P[3],           # flux rho_v
+                        v_null, P[0],P[3],      # flux rho_v
                         v[0],v_null,v_null,v[1] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, P[2],P[1],           # flux rho_v
+                        v_null, P[2],P[1],      # flux rho_v
                         v_null,v[1],v[0],v_null # flux F
                         ), "y_flux")]
         elif dim == 3:
             return [cse(join_fields(
-                        0, P[0],P[8],P[7],                                       # flux rho_v
+                        v_null, P[0],P[8],P[7],                                  # flux rho_v
                         v[0],v_null,v_null,v_null,v_null,v_null,v_null,v[2],v[1] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, P[5],P[1],P[6],                                       # flux rho_v
+                        v_null, P[5],P[1],P[6],                                  # flux rho_v
                         v_null,v[1],v_null,v_null,v_null,v[0],v[2],v_null,v_null # flux F
                         ), "y_flux"),
                     cse(join_fields(
-                        0, P[4],P[3],P[2],                                       # flux rho_v
+                        v_null, P[4],P[3],P[2],                                  # flux rho_v
                         v_null,v_null,v[2],v[1],v[0],v_null,v_null,v_null,v_null # flux F
                         ), "z_flux")]
         else:
@@ -537,30 +537,30 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         # One entry for each flux direction
         if dim == 1:
             return [cse(join_fields(
-                        0,
+                        v_null,
                         signP*P[0], # flux rho_v
                         signv*v[0]  # flux F
                         ), "x_bflux")]
         elif dim == 2:
             return [cse(join_fields(
-                        0, signP*P[0],signP*P[3],           # flux rho_v
+                        v_null, signP*P[0],signP*P[3],      # flux rho_v
                         signv*v[0],v_null,v_null,signv*v[1] # flux F
                         ), "x_bflux"),
                     cse(join_fields(
-                        0, signP*P[2],signP*P[1],           # flux rho_v
+                        v_null, signP*P[2],signP*P[1],      # flux rho_v
                         v_null,signv*v[1],signv*v[0],v_null # flux F
                         ), "y_bflux")]
         elif dim == 3:
             return [cse(join_fields(
-                        0, signP*P[0],signP*P[8],signP*P[7],                                       # flux rho_v
+                        v_null, signP*P[0],signP*P[8],signP*P[7],                                  # flux rho_v
                         signv*v[0],v_null,v_null,v_null,v_null,v_null,v_null,signv*v[2],signv*v[1] # flux F
                         ), "x_bflux"),
                     cse(join_fields(
-                        0, signP*P[5],signP*P[1],signP*P[6],                                       # flux rho_v
+                        v_null, signP*P[5],signP*P[1],signP*P[6],                                  # flux rho_v
                         v_null,signv*v[1],v_null,v_null,v_null,signv*v[0],signv*v[2],v_null,v_null # flux F
                         ), "y_bflux"),
                     cse(join_fields(
-                        0, signP*P[4],signP*P[3],signP*P[2],                                       # flux rho_v
+                        v_null, signP*P[4],signP*P[3],signP*P[2],                                  # flux rho_v
                         v_null,v_null,signv*v[2],signv*v[1],signv*v[0],v_null,v_null,v_null,v_null # flux F
                         ), "z_bflux")]
         else:
@@ -606,31 +606,31 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         # One entry for each flux direction
         if dim == 1:
             return [cse(join_fields(
-                        0,
+                        v_null,
                         (P[0]+F2[0])/k[0],  # flux rho_v
                         (v[0]+F2[1])/k[0]   # flux F
                         ), "x_flux")]
 
         elif dim == 2:
             return [cse(join_fields(
-                        0, (P[0]+F2[0])/k[0],(P[2]+F2[1])/k[0],           # flux rho_v
+                        v_null, (P[0]+F2[0])/k[0],(P[2]+F2[1])/k[0],      # flux rho_v
                         (v[0]+F2[2])/k[0],v_null,v_null,(v[1]+F2[3])/k[0] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, (P[2]+F2[4])/k[1],(P[1]+F2[5])/k[1],           # flux rho_v
+                        v_null, (P[2]+F2[4])/k[1],(P[1]+F2[5])/k[1],      # flux rho_v
                         v_null,(v[1]+F2[6])/k[1],(v[0]+F2[7])/k[1],v_null # flux F
                         ), "y_flux")]
         elif dim == 3:
             return [cse(join_fields(
-                        0, (P[0]+F2[0])/k[0],(P[5]+F2[1])/k[0],(P[4]+F2[2])/k[0],                                          # flux rho_v
+                        v_null, (P[0]+F2[0])/k[0],(P[5]+F2[1])/k[0],(P[4]+F2[2])/k[0],                                     # flux rho_v
                         (v[0]+F2[3])/k[0],v_null,v_null,v_null,v_null,v_null,v_null,(v[2]+F2[4])/k[0],(v[1]+F2[5])/k[0]    # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, (P[5]+F2[6])/k[1],(P[1]+F2[7])/k[1],(P[3]+F2[8])/k[1],                                          # flux rho_v
+                        v_null, (P[5]+F2[6])/k[1],(P[1]+F2[7])/k[1],(P[3]+F2[8])/k[1],                                     # flux rho_v
                         v_null,(v[1]+F2[9])/k[1],v_null,v_null,v_null,(v[2]+F2[10])/k[1],(v[0]+F2[11])/k[1],v_null,v_null  # flux F
                         ), "y_flux"),
                     cse(join_fields(
-                        0, (P[4]+F2[12])/k[2],(P[3]+F2[13])/k[2],(P[2]+F2[14])/k[2],                                       # flux rho_v
+                        v_null, (P[4]+F2[12])/k[2],(P[3]+F2[13])/k[2],(P[2]+F2[14])/k[2],                                  # flux rho_v
                         v_null,v_null,(v[2]+F2[15])/k[2],(v[1]+F2[16])/k[2],(v[0]+F2[17])/k[2],v_null,v_null,v_null,v_null # flux F
                         ), "z_flux")]
         else:
@@ -659,30 +659,30 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         # One entry for each flux direction
         if dim == 1:
             return [cse(join_fields(
-                        0,
+                        v_null,
                         signP*P[0], # flux rho_v
                         signv*v[0]  # flux F
                         ), "x_bflux")]
         elif dim == 2:
             return [cse(join_fields(
-                        0, signP*P[0],signP*P[2],            # flux rho_v
+                        v_null, signP*P[0],signP*P[2],       # flux rho_v
                         signv*v[0],v_null,v_null,signv*v[1]  # flux F
                         ), "x_bflux"),
                     cse(join_fields(
-                        0, signP*P[2],signP*P[1],            # flux rho_v
+                        v_null, signP*P[2],signP*P[1],       # flux rho_v
                         v_null,signv*v[1],signv*v[0],v_null  # flux F
                         ), "y_bflux")]
         elif dim == 3:
             return [cse(join_fields(
-                        0, signP*P[0],signP*P[5],signP*P[4],                                       # flux rho_v
+                        v_null, signP*P[0],signP*P[5],signP*P[4],                                  # flux rho_v
                         signv*v[0],v_null,v_null,v_null,v_null,v_null,signv*v[2],v_null,signv*v[1] # flux F
                         ), "x_bflux"),
                     cse(join_fields(
-                        0, signP*P[5],signP*P[1],signP*P[3],                                       # flux rho_v
+                        v_null, signP*P[5],signP*P[1],signP*P[3],                                  # flux rho_v
                         v_null,signv*v[1],v_null,v_null,signv*v[2],v_null,v_null,signv*v[0],v_null # flux F
                         ), "y_bflux"),
                     cse(join_fields(
-                        0, signP*P[4],signP*P[3],signP*P[2],                                       # flux rho_v
+                        v_null, signP*P[4],signP*P[3],signP*P[2],                                  # flux rho_v
                         v_null,v_null,signv*v[2],signv*v[1],v_null,signv*v[0],v_null,v_null,v_null # flux F
                         ), "z_bflux")]
         else:
@@ -953,30 +953,30 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         # One entry for each flux direction
         if dim == 1:
             return [cse(join_fields(
-                        0,
+                        v_null,
                         (P[0]+F2[0])/k[0],  # flux rho_v
                         (v[0]+F2[1])/k[0]   # flux F
                         ), "x_flux")]
         elif dim == 2:
             return [cse(join_fields(
-                        0, (P[0]+F2[0])/k[0],(P[3]+F2[1])/k[0],           # flux rho_v
+                        v_null, (P[0]+F2[0])/k[0],(P[3]+F2[1])/k[0],      # flux rho_v
                         (v[0]+F2[2])/k[0],v_null,v_null,(v[1]+F2[3])/k[0] # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, (P[2]+F2[4])/k[1],(P[1]+F2[5])/k[1],           # flux rho_v
+                        v_null, (P[2]+F2[4])/k[1],(P[1]+F2[5])/k[1],      # flux rho_v
                         v_null,(v[1]+F2[6])/k[1],(v[0]+F2[7])/k[1],v_null # flux F
                         ), "y_flux")]
         elif dim == 3:
             return [cse(join_fields(
-                        0, (P[0]+F2[0])/k[0],(P[8]+F2[1])/k[0],(P[7]+F2[2])/k[0],                                          # flux rho_v
+                        v_null, (P[0]+F2[0])/k[0],(P[8]+F2[1])/k[0],(P[7]+F2[2])/k[0],                                     # flux rho_v
                         (v[0]+F2[3])/k[0],v_null,v_null,v_null,v_null,v_null,v_null,(v[2]+F2[4])/k[0],(v[1]+F2[5])/k[0]    # flux F
                         ), "x_flux"),
                     cse(join_fields(
-                        0, (P[5]+F2[6])/k[1],(P[1]+F2[7])/k[1],(P[6]+F2[8])/k[1],                                          # flux rho_v
+                        v_null, (P[5]+F2[6])/k[1],(P[1]+F2[7])/k[1],(P[6]+F2[8])/k[1],                                     # flux rho_v
                         v_null,(v[1]+F2[9])/k[1],v_null,v_null,v_null,(v[0]+F2[10])/k[1],(v[2]+F2[11])/k[1],v_null,v_null  # flux F
                         ), "y_flux"),
                     cse(join_fields(
-                        0, (P[4]+F2[12])/k[2],(P[3]+F2[13])/k[2],(P[2]+F2[14])/k[2],                                       # flux rho_v
+                        v_null, (P[4]+F2[12])/k[2],(P[3]+F2[13])/k[2],(P[2]+F2[14])/k[2],                                  # flux rho_v
                         v_null,v_null,(v[2]+F2[15])/k[2],(v[1]+F2[16])/k[2],(v[0]+F2[17])/k[2],v_null,v_null,v_null,v_null # flux F
                         ), "z_flux")]
         else:
