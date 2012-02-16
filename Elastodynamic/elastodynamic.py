@@ -10,9 +10,16 @@ __license__ = "GNU GPLv3 (or more recent equivalent)"
 
 
 import numpy
+from hedge.data import make_tdep_constant
+from hedge.flux import FluxVectorPlaceholder, make_normal, flux_max
+from hedge.mesh import check_bc_coverage
 from hedge.models import HyperbolicOperator
-from pytools import Record
+from hedge.optemplate import get_flux_operator, make_nabla, Field
+from hedge.optemplate import BoundarizeOperator, InverseMassOperator, BoundaryPair
+from hedge.optemplate.tools import make_vector_field
+from hedge.tools.symbolic import make_common_subexpression as cse
 from libraries.utils import Utils
+from pytools.obj_array import join_fields, make_obj_array
 
 def Evaluate(mat, v0, v1, v2):
     """
@@ -21,6 +28,7 @@ def Evaluate(mat, v0, v1, v2):
     IfPositive which does not work correctly in CUDA.
     """
     return v0 + (v1 - v0) * mat + 0.5 * (v2 - 2 * v1 + v0) * mat * (mat-1.)
+
 
 class ElastoDynamicsOperator(HyperbolicOperator):
     """
@@ -62,19 +70,15 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         @param materials: should be a list
         of instances of libraries.materials.Material
         """
-        from hedge.data import make_tdep_constant
-
         self.dimensions = dimensions
         self.dimF = [0, 1, 3, 6]
         self.len_f = self.dimF[dimensions]
         self.len_q = dimensions+self.len_f+1  # 2, 5, 9
-
         self.material = material            # The function that gives the material repartition
         self.materials = materials          # The list of used materials
         for i in range(len(materials)):
             self.materials[i].Ceq = Utils.convert_dim(self.materials[i].C, self.dimensions)
         self.speed = speed
-
         self.boundaryconditions_tag = boundaryconditions_tag
         self.sources = sources
         self.flux_type = flux_type
@@ -93,7 +97,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
     def q(self, w):
         return w[1:self.len_q + 1]
 
-    def rhom(self, q):
+    def rho(self, q):
         mat = self.m(q)
         return Evaluate(mat,
                         self.materials[0].rho,
@@ -101,8 +105,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                         self.materials[2].rho)
 
     def v(self, q):
-        from pytools.obj_array import make_obj_array
-        rho = self.rhom(q)
+        rho = self.rho(q)
         return make_obj_array([rho_v_i/rho for rho_v_i in self.rho_v(q)])
 
     def P(self, q):
@@ -119,17 +122,12 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         return Pi
 
     def flux_num(self, wave_speed, q, fluxes, bdry_tags_state_and_fluxes):
-        from hedge.flux import FluxVectorPlaceholder, make_normal, flux_max
-        from hedge.optemplate import get_flux_operator, BoundaryPair
-        from pytools.obj_array import join_fields
-
         n = self.len_q
         d = len(fluxes)
         fvph = FluxVectorPlaceholder(n*(d+1)+1)
         wave_speed_ph = fvph[0]
         state_ph = fvph[1:n+1]
         fluxes_ph = [fvph[i*n+1:(i+1)*n+1] for i in range(1,d+1)]
-
         normal = make_normal(d)
         penalty = flux_max(wave_speed_ph.int,wave_speed_ph.ext)*(state_ph.ext-state_ph.int)
 
@@ -149,16 +147,10 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                 +sum(flux_op(BoundaryPair(int_operand, join_fields(0, bdry_state, *bdry_fluxes), tag))
                      for tag, bdry_state, bdry_fluxes in bdry_tags_state_and_fluxes))
 
-
     def flux(self, q):
-        from hedge.optemplate import Field
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        from pytools.obj_array import join_fields
-
         P = self.P(q)
         v = self.v(q)
         v_null = Field('state_null')
-
         dim = self.dimensions
 
         # One entry for each flux direction
@@ -195,9 +187,6 @@ class ElastoDynamicsOperator(HyperbolicOperator):
             raise ValueError("Invalid dimension")
 
     def bdry_flux(self, q_bdry, q_null, tag):
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        from pytools.obj_array import join_fields
-
         if tag == self.boundaryconditions_tag['stressfree']:
             signP = -1
             signv = 1
@@ -208,7 +197,6 @@ class ElastoDynamicsOperator(HyperbolicOperator):
             raise ValueError("Invalid boundary conditions")
 
         dim = self.dimensions
-
         P = self.P(q_bdry)
         v = self.v(q_bdry)
         v_null = q_null
@@ -246,7 +234,6 @@ class ElastoDynamicsOperator(HyperbolicOperator):
             raise ValueError("Invalid dimension")
 
     def add_sources(self, result):
-        from hedge.optemplate import Field
         dim = self.dimensions
         if self.sources is not None:
             if dim == 1:
@@ -267,21 +254,15 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         return kwargs
 
     def op_template(self):
-        from hedge.optemplate import make_nabla, InverseMassOperator, BoundarizeOperator
-        from hedge.optemplate.tools import make_vector_field
-
         q = make_vector_field('q', self.len_q)
         mat = self.m(q)
         C00 = Evaluate(mat,
                        self.materials[0].Ceq[0,0],
                        self.materials[1].Ceq[0,0],
                        self.materials[2].Ceq[0,0])
-        rho = self.rhom(q)
-
+        rho = self.rho(q)
         speed = (C00/rho)**0.5
-
         fluxes = self.flux(q)
-
 
         # Boundary conditions
         q_bc_stressfree = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(q)
@@ -304,9 +285,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         return result
 
     def bind(self, discr):
-        from hedge.mesh import check_bc_coverage
         check_bc_coverage(discr.mesh, self.boundaryconditions_tag.values())
-
         compiled_op_template = discr.compile(self.op_template())
 
         def rhs(t, q):
@@ -363,8 +342,6 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         @param materials: should be a list
         of instances of libraries.materials.Material
         """
-        from hedge.data import make_tdep_constant
-
         self.dimensions = dimensions
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[dimensions]
@@ -463,14 +440,9 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             return C
 
     def flux(self, q):
-        from hedge.optemplate import Field
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        from pytools.obj_array import join_fields
-
         P = self.P(q)
         v = self.v(q)
         v_null = Field('state_null')
-
         dim = self.dimensions
 
         # One entry for each flux direction
@@ -506,9 +478,6 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             raise ValueError("Invalid dimension")
 
     def bdry_flux(self, q_bdry, q_null, tag):
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        from pytools.obj_array import join_fields
-
         dim = self.dimensions
 
         if tag == self.boundaryconditions_tag['stressfree']:
@@ -563,6 +532,8 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
     YiFeng LI Ph'D p. 121-138
     """
 
+
+    from pytools import Record
     class PMLCoefficients(Record):
         __slots__ = ["sigma", "alpha", "kappa"]
 
@@ -582,16 +553,11 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         return w[self.len_q+1:self.len_q+self.len_f2+1]
 
     def flux(self, w, k):
-        from hedge.optemplate import Field
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        from pytools.obj_array import join_fields
-
         F2 = self.F2(w) # get F'' from state vector q
         q = self.q(w)
         P = self.P(q)
         v = self.v(q)
         v_null = Field('state_null')
-
         dim = self.dimensions
 
         # One entry for each flux direction
@@ -627,11 +593,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         else:
             raise ValueError("Invalid dimension")
 
-
     def bdry_flux(self, q_bdry, q_null, tag):
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        from pytools.obj_array import join_fields
-
         if tag == self.boundaryconditions_tag['stressfree']:
             signP = -1
             signv = 1
@@ -680,25 +642,18 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
             raise ValueError("Invalid dimension")
 
     def op_template(self):
-        from hedge.optemplate import make_nabla, InverseMassOperator, BoundarizeOperator
-        from hedge.optemplate.tools import make_vector_field
-        from pytools.obj_array import join_fields
-
         dim = self.dimensions
-
         speed = self.speed
         q = make_vector_field('q', self.len_q)
         f2 = make_vector_field('f2', self.len_f2)
         w = join_fields(speed, q, f2)
-
         mat = self.m(q)
         C00 = Evaluate(mat,
                        self.materials[0].Ceq[0,0],
                        self.materials[1].Ceq[0,0],
                        self.materials[2].Ceq[0,0])
-        rho = self.rhom(q)
+        rho = self.rho(q)
         speed = (C00/rho)**0.5
-
         dim_subset = (True,) * dim + (False,) * (3-dim)
 
         def pad_vec(v, subset):
@@ -728,7 +683,6 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
 
         # Entire operator
         nabla = make_nabla(dim)
-
         res_q = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
         res_q = self.add_sources(res_q)
 
@@ -755,9 +709,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         return join_fields(res_q, res_f2)
 
     def bind(self, discr, coefs):
-        from hedge.mesh import check_bc_coverage
         check_bc_coverage(discr.mesh, self.boundaryconditions_tag.values())
-
         compiled_op_template = discr.compile(self.op_template())
 
         def rhs(t, q):
@@ -803,7 +755,6 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                rp_dist**alpha_exponent, \
                l_dist**kappa_exponent, \
                r_dist**kappa_exponent
-
 
     def coefficients_from_boxes(self, discr, global_mesh, material,
             inner_bbox, outer_bbox=None,
@@ -857,8 +808,6 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         if kappa_magnitude is None:
             kappa_magnitude = 0.
 
-        from hedge.tools import make_obj_array
-
         nodes = discr.nodes
         if dtype is not None:
             nodes = nodes.astype(dtype)
@@ -883,7 +832,6 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                  + kappa_magnitude*make_obj_array(kappa_r_coef))
 
         return self.PMLCoefficients(sigma=sigma, alpha=alpha, kappa=kappa)
-
 
     def bounding_box(self, mesh):
         try:
@@ -911,6 +859,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                 sigma_magnitude, alpha_magnitude, kappa_magnitude,
                 sigma_exponent, alpha_exponent, kappa_exponent, dtype)
 
+
 class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsOperator):
     """
     Implements NL NPML, based on the 2 previous classes
@@ -925,10 +874,6 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         self.len_f2 = self.dimensions*self.dimensions*2
 
     def flux(self, w, k):
-        from hedge.optemplate import Field
-        from hedge.tools.symbolic import make_common_subexpression as cse
-        from pytools.obj_array import join_fields
-
         F2 = self.F2(w) #get F'' from state vector w
         q = self.q(w)
         P = self.P(q)
@@ -969,27 +914,19 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         else:
             raise ValueError("Invalid dimension")
 
-
     def op_template(self):
-        from hedge.optemplate import make_nabla, InverseMassOperator, BoundarizeOperator
-        from hedge.optemplate.tools import make_vector_field
-        from pytools.obj_array import join_fields
-
         dim = self.dimensions
-
         speed = self.speed
         q = make_vector_field('q', self.len_q)
         f2 = make_vector_field('f2', dim*dim*2)
         w = join_fields(speed, q, f2)
-
         mat = self.m(q)
         C00 = Evaluate(mat,
                        self.materials[0].Ceq[0,0],
                        self.materials[1].Ceq[0,0],
                        self.materials[2].Ceq[0,0])
-        rho = self.rhom(q)
+        rho = self.rho(q)
         speed = (C00/rho)**0.5
-
         dim_subset = (True,) * dim + (False,) * (3-dim)
 
         def pad_vec(v, subset):
@@ -1019,9 +956,7 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
 
         # Entire operator
         nabla = make_nabla(dim)
-
         res_q = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
-
         res_q = self.add_sources(res_q)
 
         F2 = self.F2(w)
