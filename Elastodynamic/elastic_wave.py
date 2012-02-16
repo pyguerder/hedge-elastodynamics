@@ -2,7 +2,6 @@
 """Function for launching the linear and nonlinear Elastodynamics operators."""
 
 from __future__ import division
-from pytools.obj_array import make_obj_array
 
 __authors__ = ["Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>",
                "Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>"]
@@ -12,7 +11,13 @@ __license__ = "GNU GPLv3 (or more recent equivalent)"
 
 import numpy
 import time
+from hedge.backends import guess_run_context
 from hedge.mesh import TAG_ALL, TAG_NONE
+from hedge.mesh.reader.gmsh import read_gmsh
+from libraries.materials import Material
+from pytools.obj_array import make_obj_array
+from math import exp, pi
+from os import access, makedirs, chdir, F_OK
 
 
 def main(write_output=['vtu', 'receivers'],
@@ -58,13 +63,6 @@ def main(write_output=['vtu', 'receivers'],
     @param material_files: array, the material files (.dat) to use
     @param vtu_every: n, to write a vtu file every n steps
     """
-
-    from os import access, makedirs, chdir, F_OK
-    from math import exp, sin, cos, pi
-    from libraries.materials import Material
-    from hedge.backends import guess_run_context
-    from hedge.mesh.reader.gmsh import read_gmsh
-
     rcon = guess_run_context(allow_features)
     rcon_init = guess_run_context(allow_features)
 
@@ -99,7 +97,7 @@ def main(write_output=['vtu', 'receivers'],
                          force_dimension=dim,
                          periodicity=periodicity,
                          allow_internal_boundaries=False,
-                         tag_mapper=lambda tag:tag)
+                         tag_mapper=lambda tag: tag)
     elif dim == 1:
         from hedge.mesh.generator import make_uniform_1d_mesh
         mesh = make_uniform_1d_mesh(-10, 10, 500)
@@ -145,14 +143,12 @@ def main(write_output=['vtu', 'receivers'],
 
     def source_v_x(pos, el):
         pos = pos - source
-        return 0
+        return exp(-numpy.dot(pos, pos) / source_param['sigma'] ** 2)
 
     def source_v_y(pos, el):
-        pos_x = pos[0] - source[0]
-        pos_y = pos[1] - source[1]
-        pos = (pos_x, pos_y)
-        return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)  # cos(10*pi/180)
- 
+        pos = pos - source
+        return 0
+
     def source_v_z(pos, el):
         pos = pos - source
         return 0
@@ -168,15 +164,16 @@ def main(write_output=['vtu', 'receivers'],
     source_function = locals()[source_type]
 
     from hedge.data import make_tdep_given, TimeIntervalGivenFunction
+
     def source_i(source_v_i):
         return TimeIntervalGivenFunction(
                    source_function(make_tdep_given(source_v_i),
                                    source_param['fc'], source_param['td']),
                    source_param['begin'], source_param['end'])
 
-    sources = { 'source_x' : source_i(source_v_x),
-                'source_y' : source_i(source_v_y),
-                'source_z' : source_i(source_v_z) }
+    sources = {'source_x': source_i(source_v_x),
+               'source_y': source_i(source_v_y),
+               'source_z': source_i(source_v_z)}
 
     # End of sources definition ---
     # Define materials and link them with elements ---
@@ -205,7 +202,7 @@ def main(write_output=['vtu', 'receivers'],
                 material_elements.append(elements_list)
         else:
             num = 0
-        speed = (materials[num].C[0,0]/materials[num].rho)**0.5
+        speed = (materials[num].C[0, 0] / materials[num].rho) ** 0.5
         speeds.append(speed.astype(dtype))
         used_materials.append(materials[num])
         if print_output:
@@ -217,8 +214,7 @@ def main(write_output=['vtu', 'receivers'],
         print "Using max speed:", speed, "m/s"
 
     def mat_val(x, el):
-        # Will be used in IfPositive(mat, then, else)
-        # 1 will lead to then, 0 to else; default is 0/else
+        # Will be used in Evaluate(mat, v0, v1, v2)
         if len(material_elements) > 2 and el.id in material_elements[2]:
             return 2
         elif len(material_elements) > 1 and el.id in material_elements[1]:
@@ -226,7 +222,7 @@ def main(write_output=['vtu', 'receivers'],
         return 0
 
     # End of materials definition ---
-    # Define the elastodynamics operator ---
+    # Define the elastodynamics operator and the discretization ---
 
     kwargs = {
               'dimensions': dim,
@@ -234,9 +230,9 @@ def main(write_output=['vtu', 'receivers'],
               'material': make_tdep_given(mat_val),
               'sources': sources,
               'boundaryconditions_tag': \
-                    { 'stressfree' : stfree_tag,
-                      'fixed' : fix_tag,
-                      'open' : op_tag },
+                    {'stressfree': stfree_tag,
+                     'fixed': fix_tag,
+                     'open': op_tag},
               'materials': used_materials,
               'flux_type': flux_type
               }
@@ -261,12 +257,9 @@ def main(write_output=['vtu', 'receivers'],
     assert operator is not None, "Failed to define operator!"
     op = locals()[operator](**kwargs)
 
-    # End of elastodynamics operator definition ---
-    # Define discretization ---
+    discr = rcon.make_discretization(mesh_data, order=order, debug=debug, tune_for=op.op_template())
 
-    discr = rcon.make_discretization(mesh_data, order=order, debug=debug,tune_for=op.op_template())
-
-    # End of discretization definition ---
+    # End of elastodynamics operator and discretization definition ---
     # Define receivers ---
 
     receivers = []
@@ -293,20 +286,6 @@ def main(write_output=['vtu', 'receivers'],
                     print "Using", point_receiver.filename, "for receiver", receiver
 
     # End of receivers definition ---
-    # Define timestepping and fields ---
-
-    from hedge.timestep import LSRK4TimeStepper
-    stepper = LSRK4TimeStepper(dtype=dtype)
-
-    fields_len = 1 + dim + op.len_f
-    if pml:
-        fields_len += dim * dim * 2
-    fields = make_obj_array([discr.volume_zeros(dtype=dtype) for _ in range(fields_len)])
-
-    #from hedge.discretization import Filter, ExponentialFilterResponseFunction
-    #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=order))
-
-    # End of timestepping and fields definition ---
     # Define visualization ---
 
     def write_datafile(filename, variables):
@@ -336,8 +315,8 @@ def main(write_output=['vtu', 'receivers'],
             visfile.write("\n")
         visfile.close()
 
-    from hedge.visualization import VtkVisualizer
     if 'vtu' in write_output:
+        from hedge.visualization import VtkVisualizer
         vis = VtkVisualizer(discr, rcon, 'fld')
 
     if output_dir:
@@ -351,9 +330,10 @@ def main(write_output=['vtu', 'receivers'],
     # End of visualization definition ---
     # Bind the operator to the discretization ---
 
-    if pml is not None:
-        coefficients = op.coefficients_from_width(discr, mesh,
-                            widths=pml, material=materials[0], alpha_magnitude=2*pi*source_param['fc']/10)
+    if pml:
+        coefficients = op.coefficients_from_width(discr, mesh, widths=pml,
+                                                  material=materials[0],
+                                                  alpha_magnitude=2 * pi * source_param['fc'] / 10)
         rhs = op.bind(discr, coefficients)
     else:
         rhs = op.bind(discr)
@@ -364,9 +344,15 @@ def main(write_output=['vtu', 'receivers'],
     t = 0.0
     max_txt = ''
     try:
-        from hedge.timestep import times_and_steps
-        step_it = times_and_steps(final_time=final_time, logmgr=None,
-                                  max_dt_getter=lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields))
+        fields_len = 1 + dim + op.len_f
+        if pml:
+            fields_len += dim * dim * 2
+        fields = make_obj_array([discr.volume_zeros(dtype=dtype) for _ in range(fields_len)])
+
+        from hedge.timestep import times_and_steps, LSRK4TimeStepper
+        stepper = LSRK4TimeStepper(dtype=dtype)
+        max_dt_getter = lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields)
+        step_it = times_and_steps(final_time=final_time, logmgr=None, max_dt_getter=max_dt_getter)
 
         for step, t, dt in step_it:
             if max_steps > 0:
@@ -393,7 +379,6 @@ def main(write_output=['vtu', 'receivers'],
 
             if 'receivers' in write_output and point_receivers != []:
                 variables = discr.convert_volume(fields, "numpy")
-
                 sum_val = numpy.zeros(len(fields))
                 sumfile.write("\n%s " % format(t))
                 for point_receiver in point_receivers:
@@ -412,16 +397,13 @@ def main(write_output=['vtu', 'receivers'],
                     for i in range(len(val)):
                         sum_val[i] += val[i]
                         point_receiver.pointfile.write("%s " % format(val[i]))
+
                 for i in range(len(val)):
                     sumfile.write("%s " % format(sum_val[i]))
 
             fields = stepper(fields, t, dt, rhs)
-            #fields = mode_filter(fields)
 
     finally:
-        #import pdb
-        #pdb.set_trace()
-    
         if 'vtu' in write_output:
             vis.close()
 
@@ -433,7 +415,7 @@ def main(write_output=['vtu', 'receivers'],
         discr.close()
         if output_dir:
             chdir('..')
-            
+
     # End ---
 
 if __name__ == "__main__":
