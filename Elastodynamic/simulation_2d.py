@@ -9,12 +9,12 @@ __copyright__ = "Copyright (C) 2010-2011 the authors"
 __license__ = "GNU GPLv3 (or more recent equivalent)"
 
 
-import numpy
 from hedge.mesh import TAG_ALL, TAG_NONE
 
 from elastic_wave import main as simulation
 
-simulation(write_output=['vtu', 'receivers'],
+
+simulation(write_output=['vtu','receiver'],
            allow_features=['mpi', 'cuda'],
            dim=2,
            order=5,
@@ -25,13 +25,13 @@ simulation(write_output=['vtu', 'receivers'],
            max_steps=None,
            output_dir='output',
            pml=[400, 400, 0, 400, 400, 0],
-           sources=numpy.array([800.0,0.0]),
+           sources=None,
            source_param={'type': 'Ricker', 'sigma':10, 'fc':7.25, 'td':0.16, 'begin':0, 'end':2},
            final_time=12,
            quiet_output=True,
-           nonlinearity_type=None,
-           mesh_file = 'Meshes/BiHeterogeneousPeriodicSquare.msh',
+           nonlinearity_type="classical",
+           mesh_file = 'Meshes/HeterogenPeriodicSquarePML.msh',
            periodicity = [None, None],
-           material_files = ['Materials/epoxy.dat', 'Materials/steel.dat', 'Materials/aluminium.dat'],
-           vtu_every=20)
+           material_files = ['Materials/epoxy.dat', 'Materials/steel.dat', 'Materials/steel.dat'],
+           vtu_every=100)
 

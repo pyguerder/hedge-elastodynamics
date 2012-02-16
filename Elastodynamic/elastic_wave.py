@@ -2,6 +2,7 @@
 """Function for launching the linear and nonlinear Elastodynamics operators."""
 
 from __future__ import division
+from pytools.obj_array import make_obj_array
 
 __authors__ = ["Olivier Bou Matar <olivier.boumatar@iemn.univ-lille1.fr>",
                "Pierre-Yves Guerder <pierre-yves.guerder@centraliens-lille.org>"]
@@ -148,7 +149,7 @@ def main(write_output=['vtu', 'receivers'],
 
     def source_v_y(pos, el):
         pos_x = pos[0] - source[0]
-        pos_y = 0
+        pos_y = pos[1] - source[1]
         pos = (pos_x, pos_y)
         return exp(-numpy.dot(pos, pos)/source_param['sigma']**2)  # cos(10*pi/180)
  
@@ -297,34 +298,10 @@ def main(write_output=['vtu', 'receivers'],
     from hedge.timestep import LSRK4TimeStepper
     stepper = LSRK4TimeStepper(dtype=dtype)
 
-    fields = None
-
-    def m():
-        if fields is not None:
-            return fields[0]
-        return [discr.volume_zeros(dtype=dtype)]
-    
-    def v():
-        if fields is not None:
-            return fields[1:dim+1]
-        return [discr.volume_zeros(dtype=dtype) for _ in range(dim)]
-    
-    def f():
-        if fields is not None:
-            return fields[dim+1:dim+op.len_f+1]
-        return [discr.volume_zeros(dtype=dtype) for _ in range(op.len_f)]
-
-    def f2():
-        if fields is not None:
-            return fields[dim+op.len_f+1:dim+op.len_f+op.len_f2+1]
-        return [discr.volume_zeros(dtype=dtype) for _ in range(dim*dim*2)]
-
-    fields_list = [m(), v(), f()]
+    fields_len = 1 + dim + op.len_f
     if pml:
-        fields_list.append(f2())
-
-    from hedge.tools import join_fields
-    fields = join_fields(*fields_list)
+        fields_len += dim * dim * 2
+    fields = make_obj_array([discr.volume_zeros(dtype=dtype) for _ in range(fields_len)])
 
     #from hedge.discretization import Filter, ExponentialFilterResponseFunction
     #mode_filter = Filter(discr, ExponentialFilterResponseFunction(min_amplification=0.9, order=order))
@@ -398,9 +375,9 @@ def main(write_output=['vtu', 'receivers'],
                     break
 
             if step % vtu_every == 0:
-                variables = [("m", discr.convert_volume(m(), "numpy")),
-                             ("v", discr.convert_volume(v(), "numpy")),
-                             ("F", discr.convert_volume(f(), "numpy"))]
+                variables = [("m", discr.convert_volume(op.m(fields), "numpy")),
+                             ("v", discr.convert_volume(op.v(fields), kind="numpy")),
+                             ("F", discr.convert_volume(op.F(fields), "numpy"))]
 
                 if print_output:
                     print time.strftime('[%H:%M:%S] ', time.localtime()) + \

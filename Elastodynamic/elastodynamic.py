@@ -13,14 +13,14 @@ import numpy
 from hedge.models import HyperbolicOperator
 from pytools import Record
 from libraries.utils import Utils
-from pymbolic.primitives import IfPositive
 
-def Evaluate(material, val_2, val_1, val_0):
-    return IfPositive(material-1,
-               val_2,
-               IfPositive(material,
-                          val_1,
-                          val_0))
+def Evaluate(mat, v0, v1, v2):
+    """
+    This function will return the value among (v0, v1, v2)
+    corresponding to the value of mat. Thus, we avoid using
+    IfPositive which does not work correctly in CUDA.
+    """
+    return v0 + (v1 - v0) * mat + 0.5 * (v2 - 2 * v1 + v0) * mat * (mat-1.)
 
 class ElastoDynamicsOperator(HyperbolicOperator):
     """
@@ -93,27 +93,28 @@ class ElastoDynamicsOperator(HyperbolicOperator):
     def q(self, w):
         return w[1:self.len_q + 1]
 
-    def v(self, w):
-        from pytools.obj_array import make_obj_array
-        q   = self.q(w)
+    def rhom(self, q):
         mat = self.m(q)
-        rho = Evaluate(mat,
-                       self.materials[2].rho,
-                       self.materials[1].rho,
-                       self.materials[0].rho)
+        return Evaluate(mat,
+                        self.materials[0].rho,
+                        self.materials[1].rho,
+                        self.materials[2].rho)
+
+    def v(self, q):
+        from pytools.obj_array import make_obj_array
+        rho = self.rhom(q)
         return make_obj_array([rho_v_i/rho for rho_v_i in self.rho_v(q)])
 
-    def P(self, w):
-        q = self.q(w)
+    def P(self, q):
         mat = self.m(q)
         Pi = numpy.zeros((self.len_f), dtype=object)
         F = self.F(q)
         for i in range(self.len_f):
             for j in range(self.len_f):
                 Ceqij = Evaluate(mat,
-                                 self.materials[2].Ceq[i,j],
+                                 self.materials[0].Ceq[i,j],
                                  self.materials[1].Ceq[i,j],
-                                 self.materials[0].Ceq[i,j])
+                                 self.materials[2].Ceq[i,j])
                 Pi[i] += Ceqij*F[j]
         return Pi
 
@@ -149,13 +150,13 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                      for tag, bdry_state, bdry_fluxes in bdry_tags_state_and_fluxes))
 
 
-    def flux(self, w):
+    def flux(self, q):
         from hedge.optemplate import Field
         from hedge.tools.symbolic import make_common_subexpression as cse
         from pytools.obj_array import join_fields
 
-        P = self.P(w)
-        v = self.v(w)
+        P = self.P(q)
+        v = self.v(q)
         v_null = Field('state_null')
 
         dim = self.dimensions
@@ -268,24 +269,18 @@ class ElastoDynamicsOperator(HyperbolicOperator):
     def op_template(self):
         from hedge.optemplate import make_nabla, InverseMassOperator, BoundarizeOperator
         from hedge.optemplate.tools import make_vector_field
-        from pytools.obj_array import join_fields
 
-        speed = self.speed
         q = make_vector_field('q', self.len_q)
-        w = join_fields(speed, q)
-
         mat = self.m(q)
         C00 = Evaluate(mat,
-                       self.materials[2].Ceq[0,0],
+                       self.materials[0].Ceq[0,0],
                        self.materials[1].Ceq[0,0],
-                       self.materials[0].Ceq[0,0])
-        rho = Evaluate(mat,
-                       self.materials[2].rho,
-                       self.materials[1].rho,
-                       self.materials[0].rho)
+                       self.materials[2].Ceq[0,0])
+        rho = self.rhom(q)
+
         speed = (C00/rho)**0.5
 
-        fluxes = self.flux(w)
+        fluxes = self.flux(q)
 
 
         # Boundary conditions
@@ -293,15 +288,13 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         q_bc_stressfree_null = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(0)
         q_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(q)
         q_bc_fixed_null = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(0)
-        w_bc_stressfree = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(w)
-        w_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(w)
 
         all_tags_and_bcs = [
-                (self.boundaryconditions_tag['stressfree'], q_bc_stressfree, q_bc_stressfree_null, w_bc_stressfree),
-                (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null, w_bc_fixed)
+                (self.boundaryconditions_tag['stressfree'], q_bc_stressfree, q_bc_stressfree_null),
+                (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bw, bc_null, tag)) for tag, bc, bc_null, bw in all_tags_and_bcs]
+        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bc, bc_null, tag)) for tag, bc, bc_null in all_tags_and_bcs]
 
         # Entire operator
         nabla = make_nabla(self.dimensions)
@@ -390,19 +383,17 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         self.nonlinearity_type = nonlinearity_type
         self.state_null = make_tdep_constant(0)
 
-    def P(self, w):
-        q = self.q(w)
+    def P(self, q):
         Pi = numpy.zeros(self.len_f, dtype=object)
-        Ceq = self.C_eq(w)
+        Ceq = self.C_eq(q)
         F = self.F(q)
         for i in range(self.len_f):
             for j in range(self.len_f):
                 Pi[i] += Ceq[i,j] * F[j]
         return Pi
 
-    def M(self, w):
+    def M(self, q):
         dim = self.dimensions
-        q = self.q(w)
         mat = self.m(q)
         M = numpy.zeros((dim**2, dim**2, dim**2), dtype=object)
         for i in range(dim):
@@ -422,40 +413,39 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
                                 IK = Utils.condense_sym(i, k, dim) - 1
                                 LM = Utils.condense_sym(l, m, dim) - 1
                                 Cnl = Evaluate(mat,
-                                               self.materials[2].Cnl[I2,J2,K2],
+                                               self.materials[0].Cnl[I2,J2,K2],
                                                self.materials[1].Cnl[I2,J2,K2],
-                                               self.materials[0].Cnl[I2,J2,K2])
+                                               self.materials[2].Cnl[I2,J2,K2])
                                 Ci2lm = Evaluate(mat,
-                                                 self.materials[2].C[I2, LM],
+                                                 self.materials[0].C[I2, LM],
                                                  self.materials[1].C[I2, LM],
-                                                 self.materials[0].C[I2, LM])
+                                                 self.materials[2].C[I2, LM])
                                 Cilk2 = Evaluate(mat,
-                                                 self.materials[2].C[IL, K2],
+                                                 self.materials[0].C[IL, K2],
                                                  self.materials[1].C[IL, K2],
-                                                 self.materials[0].C[IL, K2])
+                                                 self.materials[2].C[IL, K2])
                                 Ciklm = Evaluate(mat,
-                                                 self.materials[2].C[IK, LM],
+                                                 self.materials[0].C[IK, LM],
                                                  self.materials[1].C[IK, LM],
-                                                 self.materials[0].C[IK, LM])
+                                                 self.materials[2].C[IK, LM])
                                 M[I1,J1,K1] = Cnl \
                                     + Ci2lm * Utils.kronecker(k,n) \
                                     + Cilk2 * Utils.kronecker(j,k) \
                                     + Ciklm * Utils.kronecker(j,n)
         return M
 
-    def C_eq(self, w):
-        q = self.q(w)
+    def C_eq(self, q):
         mat = self.m(q)
-        M = self.M(w)
+        M = self.M(q)
         if self.nonlinearity_type == "classical":
             C = numpy.zeros((self.len_f,self.len_f), dtype=object)
             F = self.F(q)
             for i in range(self.len_f):
                 for j in range(self.len_f):
                     C[i,j] = Evaluate(mat,
-                                      self.materials[2].Ceq[i,j],
+                                      self.materials[0].Ceq[i,j],
                                       self.materials[1].Ceq[i,j],
-                                      self.materials[0].Ceq[i,j])
+                                      self.materials[2].Ceq[i,j])
                     for k in range(self.len_f):
                         C[i,j] += 0.5 * M[i, j, k] * F[k]
             return C
@@ -465,20 +455,20 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             for i in range(self.len_f):
                 for j in range(self.len_f):
                     Ceqij = Evaluate(mat,
-                                     self.materials[2].Ceq[i,j],
+                                     self.materials[0].Ceq[i,j],
                                      self.materials[1].Ceq[i,j],
-                                     self.materials[0].Ceq[i,j])
+                                     self.materials[2].Ceq[i,j])
                     for k in range(self.len_f):
                         C[i,j] = Ceqij
             return C
 
-    def flux(self, w):
+    def flux(self, q):
         from hedge.optemplate import Field
         from hedge.tools.symbolic import make_common_subexpression as cse
         from pytools.obj_array import join_fields
 
-        P = self.P(w)
-        v = self.v(w)
+        P = self.P(q)
+        v = self.v(q)
         v_null = Field('state_null')
 
         dim = self.dimensions
@@ -596,9 +586,10 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         from hedge.tools.symbolic import make_common_subexpression as cse
         from pytools.obj_array import join_fields
 
-        F2 = self.F2(w) # get F'' from state vector w
-        P = self.P(w)
-        v = self.v(w)
+        F2 = self.F2(w) # get F'' from state vector q
+        q = self.q(w)
+        P = self.P(q)
+        v = self.v(q)
         v_null = Field('state_null')
 
         dim = self.dimensions
@@ -702,13 +693,10 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
 
         mat = self.m(q)
         C00 = Evaluate(mat,
-                       self.materials[2].Ceq[0,0],
+                       self.materials[0].Ceq[0,0],
                        self.materials[1].Ceq[0,0],
-                       self.materials[0].Ceq[0,0])
-        rho = Evaluate(mat,
-                       self.materials[2].rho,
-                       self.materials[1].rho,
-                       self.materials[0].rho)
+                       self.materials[2].Ceq[0,0])
+        rho = self.rhom(q)
         speed = (C00/rho)**0.5
 
         dim_subset = (True,) * dim + (False,) * (3-dim)
@@ -729,16 +717,14 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         q_bc_stressfree_null = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(0)
         q_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(q)
         q_bc_fixed_null = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(0)
-        w_bc_stressfree = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(w)
-        w_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(w)
 
         all_tags_and_bcs = [
-                (self.boundaryconditions_tag['stressfree'], q_bc_stressfree, q_bc_stressfree_null, w_bc_stressfree),
-                (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null, w_bc_fixed)
+                (self.boundaryconditions_tag['stressfree'], q_bc_stressfree, q_bc_stressfree_null),
+                (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bw, bc_null, tag)) 
-                                      for tag, bc, bc_null, bw in all_tags_and_bcs]
+        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bc, bc_null, tag)) 
+                                      for tag, bc, bc_null in all_tags_and_bcs]
 
         # Entire operator
         nabla = make_nabla(dim)
@@ -747,8 +733,8 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         res_q = self.add_sources(res_q)
 
         F2 = self.F2(w)
-        P = self.P(w)
-        v = self.v(w)
+        P = self.P(q)
+        v = self.v(q)
         if dim == 1:
             F = [P[0],v[0]]
         elif dim == 2:
@@ -944,8 +930,9 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         from pytools.obj_array import join_fields
 
         F2 = self.F2(w) #get F'' from state vector w
-        P = self.P(w)
-        v = self.v(w)
+        q = self.q(w)
+        P = self.P(q)
+        v = self.v(q)
         v_null = Field('state_null')
 
         dim = self.dimensions
@@ -997,13 +984,10 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
 
         mat = self.m(q)
         C00 = Evaluate(mat,
-                       self.materials[2].Ceq[0,0],
+                       self.materials[0].Ceq[0,0],
                        self.materials[1].Ceq[0,0],
-                       self.materials[0].Ceq[0,0])
-        rho = Evaluate(mat,
-                       self.materials[2].rho,
-                       self.materials[1].rho,
-                       self.materials[0].rho)
+                       self.materials[2].Ceq[0,0])
+        rho = self.rhom(q)
         speed = (C00/rho)**0.5
 
         dim_subset = (True,) * dim + (False,) * (3-dim)
@@ -1024,16 +1008,14 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         q_bc_stressfree_null = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(0)
         q_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(q)
         q_bc_fixed_null = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(0)
-        w_bc_stressfree = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(w)
-        w_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(w)
 
         all_tags_and_bcs = [
-                (self.boundaryconditions_tag['stressfree'], q_bc_stressfree, q_bc_stressfree_null, w_bc_stressfree),
-                (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null, w_bc_fixed)
+                (self.boundaryconditions_tag['stressfree'], q_bc_stressfree, q_bc_stressfree_null),
+                (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bw, bc_null, tag)) 
-                                      for tag, bc, bc_null, bw in all_tags_and_bcs]
+        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bc, bc_null, tag)) 
+                                      for tag, bc, bc_null in all_tags_and_bcs]
 
         # Entire operator
         nabla = make_nabla(dim)
@@ -1045,8 +1027,8 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         F2 = self.F2(w)
         F = self.F(q)
         
-        P = self.P(w)
-        v = self.v(w)
+        P = self.P(q)
+        v = self.v(q)
         if dim == 1:
             F = [P[0],v[0]]
         elif dim == 2:
