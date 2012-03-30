@@ -80,6 +80,10 @@ def main(write_output=['vtu', 'receivers'],
     else:
         print_output = True
     if print_output:
+        print "Using features:", ', '.join(allow_features).upper()
+        nbranks = len(rcon.ranks)
+        print "Using", nbranks, "rank" + ('s' if nbranks > 1 else '')
+        print "Using", dim, "dimension" + ('s' if dim > 1 else '')
         print "Rank", rcon.rank, "will print its output."
     else:
         print "Rank", rcon.rank, "will be silent."
@@ -256,6 +260,8 @@ def main(write_output=['vtu', 'receivers'],
 
     assert operator is not None, "Failed to define operator!"
     op = locals()[operator](**kwargs)
+    if print_output:
+        print "Using", operator
 
     discr = rcon.make_discretization(mesh_data, order=order, debug=debug, tune_for=op.op_template())
 

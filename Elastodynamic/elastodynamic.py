@@ -27,7 +27,9 @@ def Evaluate(mat, v0, v1, v2):
     corresponding to the value of mat. Thus, we avoid using
     IfPositive which does not work correctly in CUDA.
     """
-    return v0 + (v1 - v0) * mat + 0.5 * (v2 - 2 * v1 + v0) * mat * (mat-1.)
+    return v0 * (1 - mat + mat * (mat - 1) / 2) + \
+           v1 * (2 * mat - mat * mat) + \
+           v2 * (mat * (mat - 1) / 2)
 
 
 class ElastoDynamicsOperator(HyperbolicOperator):
@@ -74,11 +76,11 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         self.dimF = [0, 1, 3, 6]
         self.len_f = self.dimF[dimensions]
         self.len_q = dimensions+self.len_f+1  # 2, 5, 9
-        self.material = material            # The function that gives the material repartition
-        self.materials = materials          # The list of used materials
+        self.material = material              # The function that gives the material repartition
+        self.materials = materials            # The list of used materials
         for i in range(len(materials)):
             self.materials[i].Ceq = Utils.convert_dim(self.materials[i].C, self.dimensions)
-        self.speed = speed
+        self.max_speed = speed
         self.boundaryconditions_tag = boundaryconditions_tag
         self.sources = sources
         self.flux_type = flux_type
@@ -103,6 +105,15 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                         self.materials[0].rho,
                         self.materials[1].rho,
                         self.materials[2].rho)
+
+    def wave_speed(self, q):
+        mat = self.m(q)
+        C00 = Evaluate(mat,
+                       self.materials[0].Ceq[0,0],
+                       self.materials[1].Ceq[0,0],
+                       self.materials[2].Ceq[0,0])
+        rho = self.rho(q)
+        return (C00 / rho) ** 0.5
 
     def v(self, q):
         rho = self.rho(q)
@@ -255,13 +266,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
 
     def op_template(self):
         q = make_vector_field('q', self.len_q)
-        mat = self.m(q)
-        C00 = Evaluate(mat,
-                       self.materials[0].Ceq[0,0],
-                       self.materials[1].Ceq[0,0],
-                       self.materials[2].Ceq[0,0])
-        rho = self.rho(q)
-        speed = (C00/rho)**0.5
+        speed = self.wave_speed(q)
         fluxes = self.flux(q)
 
         # Boundary conditions
@@ -297,7 +302,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         return rhs
 
     def max_eigenvalue(self, t, fields=None, discr=None):
-        return self.speed
+        return self.max_speed
 
 
 class NLElastoDynamicsOperator(ElastoDynamicsOperator):
@@ -346,12 +351,11 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[dimensions]
         self.len_q = dimensions+self.len_f+1  # 2, 6, 12
-
-        self.material = material            # The function that gives the material repartition
-        self.materials = materials          # The list of used materials
+        self.material = material              # The function that gives the material repartition
+        self.materials = materials            # The list of used materials
         for i in range(len(materials)):
             self.materials[i].Ceq = Utils.convert_dim(self.materials[i].C, self.dimensions)
-        self.speed = speed
+        self.max_speed = speed
 
         self.boundaryconditions_tag = boundaryconditions_tag
         self.sources = sources
@@ -643,17 +647,10 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
 
     def op_template(self):
         dim = self.dimensions
-        speed = self.speed
         q = make_vector_field('q', self.len_q)
         f2 = make_vector_field('f2', self.len_f2)
+        speed = self.wave_speed(q)
         w = join_fields(speed, q, f2)
-        mat = self.m(q)
-        C00 = Evaluate(mat,
-                       self.materials[0].Ceq[0,0],
-                       self.materials[1].Ceq[0,0],
-                       self.materials[2].Ceq[0,0])
-        rho = self.rho(q)
-        speed = (C00/rho)**0.5
         dim_subset = (True,) * dim + (False,) * (3-dim)
 
         def pad_vec(v, subset):
@@ -916,17 +913,10 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
 
     def op_template(self):
         dim = self.dimensions
-        speed = self.speed
         q = make_vector_field('q', self.len_q)
         f2 = make_vector_field('f2', dim*dim*2)
+        speed = self.wave_speed(q)
         w = join_fields(speed, q, f2)
-        mat = self.m(q)
-        C00 = Evaluate(mat,
-                       self.materials[0].Ceq[0,0],
-                       self.materials[1].Ceq[0,0],
-                       self.materials[2].Ceq[0,0])
-        rho = self.rho(q)
-        speed = (C00/rho)**0.5
         dim_subset = (True,) * dim + (False,) * (3-dim)
 
         def pad_vec(v, subset):
