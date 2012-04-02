@@ -218,11 +218,10 @@ def main(write_output=['vtu', 'receivers'],
         print "Using max speed:", speed, "m/s"
 
     def mat_val(x, el):
-        # Will be used in Evaluate(mat, v0, v1, v2)
-        if len(material_elements) > 2 and el.id in material_elements[2]:
-            return 2
-        elif len(material_elements) > 1 and el.id in material_elements[1]:
-            return 1
+        # Will be used in Evaluate(mat, val)
+        for i in range(len(material_elements)):
+            if el.id in material_elements[i]:
+                return i
         return 0
 
     # End of materials definition ---

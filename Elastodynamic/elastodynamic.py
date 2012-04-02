@@ -21,15 +21,15 @@ from hedge.tools.symbolic import make_common_subexpression as cse
 from libraries.utils import Utils
 from pytools.obj_array import join_fields, make_obj_array
 
-def Evaluate(mat, v0, v1, v2):
+def Evaluate(mat, v):
     """
     This function will return the value among (v0, v1, v2)
     corresponding to the value of mat. Thus, we avoid using
     IfPositive which does not work correctly in CUDA.
     """
-    return v0 * (1 - mat + mat * (mat - 1) / 2) + \
-           v1 * (2 * mat - mat * mat) + \
-           v2 * (mat * (mat - 1) / 2)
+    return v[0] * (1 - mat + mat * (mat - 1) / 2) + \
+           v[1] * (2 * mat - mat * mat) + \
+           v[2] * (mat * (mat - 1) / 2)
 
 
 class ElastoDynamicsOperator(HyperbolicOperator):
@@ -101,17 +101,11 @@ class ElastoDynamicsOperator(HyperbolicOperator):
 
     def rho(self, q):
         mat = self.m(q)
-        return Evaluate(mat,
-                        self.materials[0].rho,
-                        self.materials[1].rho,
-                        self.materials[2].rho)
+        return Evaluate(mat, [material.rho for material in self.materials])
 
     def wave_speed(self, q):
         mat = self.m(q)
-        C00 = Evaluate(mat,
-                       self.materials[0].Ceq[0,0],
-                       self.materials[1].Ceq[0,0],
-                       self.materials[2].Ceq[0,0])
+        C00 = Evaluate(mat, [material.Ceq[0,0] for material in self.materials])
         rho = self.rho(q)
         return (C00 / rho) ** 0.5
 
@@ -125,10 +119,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         F = self.F(q)
         for i in range(self.len_f):
             for j in range(self.len_f):
-                Ceqij = Evaluate(mat,
-                                 self.materials[0].Ceq[i,j],
-                                 self.materials[1].Ceq[i,j],
-                                 self.materials[2].Ceq[i,j])
+                Ceqij = Evaluate(mat, [material.Ceq[i,j] for material in self.materials])
                 Pi[i] += Ceqij*F[j]
         return Pi
 
@@ -393,22 +384,10 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
                                 IL = Utils.condense_sym(i, l, dim) - 1
                                 IK = Utils.condense_sym(i, k, dim) - 1
                                 LM = Utils.condense_sym(l, m, dim) - 1
-                                Cnl = Evaluate(mat,
-                                               self.materials[0].Cnl[I2,J2,K2],
-                                               self.materials[1].Cnl[I2,J2,K2],
-                                               self.materials[2].Cnl[I2,J2,K2])
-                                Ci2lm = Evaluate(mat,
-                                                 self.materials[0].C[I2, LM],
-                                                 self.materials[1].C[I2, LM],
-                                                 self.materials[2].C[I2, LM])
-                                Cilk2 = Evaluate(mat,
-                                                 self.materials[0].C[IL, K2],
-                                                 self.materials[1].C[IL, K2],
-                                                 self.materials[2].C[IL, K2])
-                                Ciklm = Evaluate(mat,
-                                                 self.materials[0].C[IK, LM],
-                                                 self.materials[1].C[IK, LM],
-                                                 self.materials[2].C[IK, LM])
+                                Cnl = Evaluate(mat, [material.Cnl[I2,J2,K2] for material in self.materials])
+                                Ci2lm = Evaluate(mat, [material.C[I2, LM] for material in self.materials])
+                                Cilk2 = Evaluate(mat, [material.C[IL, K2] for material in self.materials])
+                                Ciklm = Evaluate(mat, [material.C[IK, LM] for material in self.materials])
                                 M[I1,J1,K1] = Cnl \
                                     + Ci2lm * Utils.kronecker(k,n) \
                                     + Cilk2 * Utils.kronecker(j,k) \
@@ -423,10 +402,7 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             F = self.F(q)
             for i in range(self.len_f):
                 for j in range(self.len_f):
-                    C[i,j] = Evaluate(mat,
-                                      self.materials[0].Ceq[i,j],
-                                      self.materials[1].Ceq[i,j],
-                                      self.materials[2].Ceq[i,j])
+                    C[i,j] = Evaluate(mat, [material.Ceq[i,j] for material in self.materials])
                     for k in range(self.len_f):
                         C[i,j] += 0.5 * M[i, j, k] * F[k]
             return C
@@ -435,10 +411,7 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             F = self.F(q)
             for i in range(self.len_f):
                 for j in range(self.len_f):
-                    Ceqij = Evaluate(mat,
-                                     self.materials[0].Ceq[i,j],
-                                     self.materials[1].Ceq[i,j],
-                                     self.materials[2].Ceq[i,j])
+                    Ceqij = Evaluate(mat, [material.Ceq[i,j] for material in self.materials])
                     for k in range(self.len_f):
                         C[i,j] = Ceqij
             return C
