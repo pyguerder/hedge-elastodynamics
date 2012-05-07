@@ -349,10 +349,10 @@ def main(write_output=['vtu', 'receivers'],
     t = 0.0
     max_txt = ''
     try:
-        fields_len = 1 + dim + op.len_f
+        len_fields = op.len_q
         if pml:
-            fields_len += dim * dim * 2
-        fields = make_obj_array([discr.volume_zeros(dtype=dtype) for _ in range(fields_len)])
+            len_fields += op.len_f2
+        fields = make_obj_array([discr.volume_zeros(dtype=dtype) for _ in range(len_fields)])
 
         from hedge.timestep import times_and_steps, LSRK4TimeStepper
         stepper = LSRK4TimeStepper(dtype=dtype)
@@ -367,7 +367,7 @@ def main(write_output=['vtu', 'receivers'],
 
             if step % vtu_every == 0:
                 variables = [("m", discr.convert_volume(op.m(fields), "numpy")),
-                             ("v", discr.convert_volume(op.v(fields), kind="numpy")),
+                             ("v", discr.convert_volume(op.v(fields), "numpy")),
                              ("F", discr.convert_volume(op.F(fields), "numpy"))]
 
                 if print_output:

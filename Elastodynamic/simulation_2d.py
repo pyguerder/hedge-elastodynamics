@@ -15,7 +15,7 @@ from elastic_wave import main as simulation
 
 
 simulation(write_output=['vtu','receiver'],
-           allow_features=['mpi'],
+           allow_features=['mpi', 'cuda'],
            dim=2,
            order=5,
            stfree_tag=TAG_NONE,
@@ -29,10 +29,9 @@ simulation(write_output=['vtu','receiver'],
            source_param={'type': 'Ricker', 'sigma':10, 'fc':7.25, 'td':0.16, 'begin':0, 'end':2},
            final_time=12,
            quiet_output=True,
-           nonlinearity_type=None,
-	   #nonlinearity_type='classical',
-           mesh_file = 'Meshes/HeterogenPeriodicSquarePML.msh',
+           nonlinearity_type='classical',
+           mesh_file = 'Meshes/BiHeterogeneousPeriodicSquare.msh',
            periodicity = [None, None],
-           material_files = ['Materials/epoxy.dat', 'Materials/steel.dat', 'Materials/steel.dat'],
+           material_files = ['Materials/epoxy.dat', 'Materials/aluminium.dat', 'Materials/steel.dat'],
            vtu_every=100)
 

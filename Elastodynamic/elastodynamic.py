@@ -21,6 +21,7 @@ from hedge.tools.symbolic import make_common_subexpression as cse
 from libraries.utils import Utils
 from pytools.obj_array import join_fields, make_obj_array
 
+
 def Evaluate(mat, v):
     """
     This function will return the value among (v0, v1, v2)
@@ -75,9 +76,9 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         self.dimensions = dimensions
         self.dimF = [0, 1, 3, 6]
         self.len_f = self.dimF[dimensions]
-        self.len_q = dimensions+self.len_f+1  # 2, 5, 9
-        self.material = material              # The function that gives the material repartition
-        self.materials = materials            # The list of used materials
+        self.len_q = dimensions + self.len_f + 1  # 3, 6, 10
+        self.material = material                  # The function that gives the material repartition
+        self.materials = materials                # The list of used materials
         for i in range(len(materials)):
             self.materials[i].Ceq = Utils.convert_dim(self.materials[i].C, self.dimensions)
         self.max_speed = speed
@@ -95,9 +96,6 @@ class ElastoDynamicsOperator(HyperbolicOperator):
     def F(self, q):
         dim = self.dimensions
         return q[dim+1:dim+self.len_f+1]
-
-    def q(self, w):
-        return w[1:self.len_q + 1]
 
     def rho(self, q):
         mat = self.m(q)
@@ -123,31 +121,31 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                 Pi[i] += Ceqij*F[j]
         return Pi
 
-    def flux_num(self, wave_speed, q, fluxes, bdry_tags_state_and_fluxes):
+    def flux_num(self, q, fluxes, bdry_tag_state_flux):
         n = self.len_q
         d = len(fluxes)
         fvph = FluxVectorPlaceholder(n*(d+1)+1)
-        wave_speed_ph = fvph[0]
+        speed_ph = fvph[0]
         state_ph = fvph[1:n+1]
         fluxes_ph = [fvph[i*n+1:(i+1)*n+1] for i in range(1,d+1)]
         normal = make_normal(d)
-        penalty = flux_max(wave_speed_ph.int,wave_speed_ph.ext)*(state_ph.ext-state_ph.int)
 
         flux_strong = 0.5*sum(n_i*(f_i.ext-f_i.int) for n_i, f_i in zip(normal, fluxes_ph))
 
         if self.flux_type == "central":
             pass
         elif self.flux_type == "lf":
-            flux_strong = 0.5*penalty + flux_strong
+            penalty = flux_max(speed_ph.int,speed_ph.ext)*(state_ph.ext-state_ph.int)
+            flux_strong = 0.5 * penalty + flux_strong
         else:
             raise ValueError("Invalid flux type '%s'" % self.flux_type)
 
         flux_op = get_flux_operator(flux_strong)
-        int_operand = join_fields(wave_speed,q,*fluxes)
+        int_operand = join_fields(self.wave_speed(q), q, *fluxes)
 
         return (flux_op(int_operand)
                 +sum(flux_op(BoundaryPair(int_operand, join_fields(0, bdry_state, *bdry_fluxes), tag))
-                     for tag, bdry_state, bdry_fluxes in bdry_tags_state_and_fluxes))
+                     for tag, bdry_state, bdry_fluxes in bdry_tag_state_flux))
 
     def flux(self, q):
         P = self.P(q)
@@ -257,7 +255,6 @@ class ElastoDynamicsOperator(HyperbolicOperator):
 
     def op_template(self):
         q = make_vector_field('q', self.len_q)
-        speed = self.wave_speed(q)
         fluxes = self.flux(q)
 
         # Boundary conditions
@@ -271,12 +268,14 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                 (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bc, bc_null, tag)) for tag, bc, bc_null in all_tags_and_bcs]
+        bdry_tag_state_flux = [(tag, bc, self.bdry_flux(bc, bc_null, tag))
+                               for tag, bc, bc_null in all_tags_and_bcs]
 
         # Entire operator
         nabla = make_nabla(self.dimensions)
 
-        result = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
+        result = (numpy.dot(nabla, fluxes) + InverseMassOperator()
+                  * (self.flux_num(q, fluxes, bdry_tag_state_flux)))
         result = self.add_sources(result)
         return result
 
@@ -341,9 +340,9 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
         self.dimensions = dimensions
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[dimensions]
-        self.len_q = dimensions+self.len_f+1  # 2, 6, 12
-        self.material = material              # The function that gives the material repartition
-        self.materials = materials            # The list of used materials
+        self.len_q = dimensions + self.len_f + 1  # 3, 7, 13
+        self.material = material                  # The function that gives the material repartition
+        self.materials = materials                # The list of used materials
         for i in range(len(materials)):
             self.materials[i].Ceq = Utils.convert_dim(self.materials[i].C, self.dimensions)
         self.max_speed = speed
@@ -509,8 +508,8 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
     YiFeng LI Ph'D p. 121-138
     """
 
-
     from pytools import Record
+
     class PMLCoefficients(Record):
         __slots__ = ["sigma", "alpha", "kappa"]
 
@@ -523,17 +522,20 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         ElastoDynamicsOperator.__init__(self, *args, **kwargs)
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[self.dimensions]
-        self.len_q = self.dimensions+self.len_f+1
-        self.len_f2 = self.dimensions*self.dimensions*2
+        self.len_q = self.dimensions + self.len_f + 1
+        self.len_f2 = self.dimensions * self.dimensions * 2
+
+    def q(self, w):
+        return w[0:self.len_q]
 
     def F2(self, w):
-        return w[self.len_q+1:self.len_q+self.len_f2+1]
+        return w[self.len_q:self.len_q + self.len_f2]
 
     def flux(self, w, k):
-        F2 = self.F2(w) # get F'' from state vector q
         q = self.q(w)
         P = self.P(q)
         v = self.v(q)
+        F2 = self.F2(w)
         v_null = Field('state_null')
         dim = self.dimensions
 
@@ -622,8 +624,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
         dim = self.dimensions
         q = make_vector_field('q', self.len_q)
         f2 = make_vector_field('f2', self.len_f2)
-        speed = self.wave_speed(q)
-        w = join_fields(speed, q, f2)
+        w = join_fields(q, f2)
         dim_subset = (True,) * dim + (False,) * (3-dim)
 
         def pad_vec(v, subset):
@@ -648,12 +649,13 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                 (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bc, bc_null, tag)) 
-                                      for tag, bc, bc_null in all_tags_and_bcs]
+        bdry_tag_state_flux = [(tag, bc, self.bdry_flux(bc, bc_null, tag))
+                               for tag, bc, bc_null in all_tags_and_bcs]
 
         # Entire operator
         nabla = make_nabla(dim)
-        res_q = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
+        res_q = (numpy.dot(nabla, fluxes) + InverseMassOperator()
+                 * (self.flux_num(q, fluxes, bdry_tag_state_flux)))
         res_q = self.add_sources(res_q)
 
         F2 = self.F2(w)
@@ -764,7 +766,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                     sigma_magnitude_l[i] = (1+sigma_exponent)*sqrt(material.C[0,0]/material.rho)*log(1/1e-4)*1/(2*(i_l-o_l))
                 else:
                     sigma_magnitude_l[i] = 0
-    
+
             sigma_magnitude_r[i] = sigma_magnitude
             if sigma_magnitude is None:
                 if o_r-i_r > 0:
@@ -840,8 +842,8 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
         NLElastoDynamicsOperator.__init__(self, *args, **kwargs)
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[self.dimensions]
-        self.len_q = self.dimensions+self.len_f+1
-        self.len_f2 = self.dimensions*self.dimensions*2
+        self.len_q = self.dimensions + self.len_f + 1
+        self.len_f2 = self.dimensions * self.dimensions * 2
 
     def flux(self, w, k):
         F2 = self.F2(w) #get F'' from state vector w
@@ -887,9 +889,8 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
     def op_template(self):
         dim = self.dimensions
         q = make_vector_field('q', self.len_q)
-        f2 = make_vector_field('f2', dim*dim*2)
-        speed = self.wave_speed(q)
-        w = join_fields(speed, q, f2)
+        f2 = make_vector_field('f2', self.len_f2)
+        w = join_fields(q, f2)
         dim_subset = (True,) * dim + (False,) * (3-dim)
 
         def pad_vec(v, subset):
@@ -914,17 +915,18 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
                 (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null)
                            ]
 
-        bdry_tags_state_and_fluxes = [(tag, bc, self.bdry_flux(bc, bc_null, tag)) 
-                                      for tag, bc, bc_null in all_tags_and_bcs]
+        bdry_tag_state_flux = [(tag, bc, self.bdry_flux(bc, bc_null, tag))
+                               for tag, bc, bc_null in all_tags_and_bcs]
 
         # Entire operator
         nabla = make_nabla(dim)
-        res_q = (numpy.dot(nabla,fluxes) + InverseMassOperator() * (self.flux_num(speed,q,fluxes,bdry_tags_state_and_fluxes)))
+        res_q = (numpy.dot(nabla, fluxes) + InverseMassOperator()
+                 * (self.flux_num(q, fluxes, bdry_tag_state_flux)))
         res_q = self.add_sources(res_q)
 
         F2 = self.F2(w)
         F = self.F(q)
-        
+
         P = self.P(q)
         v = self.v(q)
         if dim == 1:
