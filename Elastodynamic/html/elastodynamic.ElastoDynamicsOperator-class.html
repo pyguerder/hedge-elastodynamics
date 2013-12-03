@@ -53,34 +53,22 @@
 </table>
 <!-- ==================== CLASS DESCRIPTION ==================== -->
 <h1 class="epydoc">Class ElastoDynamicsOperator</h1><p class="nomargin-top"><span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator">source&nbsp;code</a></span></p>
-<center>
-<center>  <map id="uml_class_diagram_for_elastody" name="uml_class_diagram_for_elastody">
-<area shape="rect" id="node1" href="elastodynamic.NLNPMLElastoDynamicsOperator-class.html" title="Implements NL NPML, based on the 2 previous classes" alt="" coords="387,545,619,583"/>
-<area shape="rect" id="node1" href="javascript:void(0);" title="Estimate the largest stable timestep, given a time stepper `stepper_class`." alt="" coords="183,103,823,121"/>
-<area shape="rect" id="node2" href="javascript:void(0);" title="A base class for hyperbolic Discontinuous Galerkin operators." alt="" coords="171,70,835,127"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#__init__" title="x.__init__(...) initializes x; see help(type(x)) for signature" alt="" coords="17,180,987,199"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#m" title="elastodynamic.ElastoDynamicsOperator.m" alt="" coords="17,199,987,217"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#rho_v" title="elastodynamic.ElastoDynamicsOperator.rho_v" alt="" coords="17,217,987,236"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#F" title="elastodynamic.ElastoDynamicsOperator.F" alt="" coords="17,236,987,255"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#q" title="elastodynamic.ElastoDynamicsOperator.q" alt="" coords="17,255,987,273"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#v" title="elastodynamic.ElastoDynamicsOperator.v" alt="" coords="17,273,987,292"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#P" title="elastodynamic.ElastoDynamicsOperator.P" alt="" coords="17,292,987,311"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#flux_num" title="elastodynamic.ElastoDynamicsOperator.flux_num" alt="" coords="17,311,987,329"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#flux" title="elastodynamic.ElastoDynamicsOperator.flux" alt="" coords="17,329,987,348"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#bdry_flux" title="elastodynamic.ElastoDynamicsOperator.bdry_flux" alt="" coords="17,348,987,367"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#add_sources" title="elastodynamic.ElastoDynamicsOperator.add_sources" alt="" coords="17,367,987,385"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#bind_sources" title="elastodynamic.ElastoDynamicsOperator.bind_sources" alt="" coords="17,385,987,404"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#op_template" title="elastodynamic.ElastoDynamicsOperator.op_template" alt="" coords="17,404,987,423"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#bind" title="elastodynamic.ElastoDynamicsOperator.bind" alt="" coords="17,423,987,441"/>
-<area shape="rect" id="node0" href="elastodynamic.ElastoDynamicsOperator-class.html#max_eigenvalue" title="elastodynamic.ElastoDynamicsOperator.max_eigenvalue" alt="" coords="17,441,987,460"/>
-<area shape="rect" id="node6" href="elastodynamic.ElastoDynamicsOperator-class.html" title="An nD linear Elastodynamics operator." alt="" coords="5,147,997,466"/>
-<area shape="rect" id="node3" href="javascript:void(0);" title="A base class for Discontinuous Galerkin operators." alt="" coords="421,6,581,50"/>
-<area shape="rect" id="node4" href="elastodynamic.NLElastoDynamicsOperator-class.html" title="An nD non linear Elastodynamics operator." alt="" coords="287,486,484,525"/>
-<area shape="rect" id="node5" href="elastodynamic.NPMLElastoDynamicsOperator-class.html" title="Implements a NPML as in" alt="" coords="513,486,729,525"/>
-</map>
-  <img src="uml_class_diagram_for_elastody.gif" alt='' usemap="#uml_class_diagram_for_elastody" ismap="ismap" class="graph-without-title" />
-</center>
-</center>
+<pre class="base-tree">
+                 object --+        
+                          |        
+      hedge.models.Operator --+    
+                              |    
+hedge.models.HyperbolicOperator --+
+                                  |
+                                 <strong class="uidshort">ElastoDynamicsOperator</strong>
+</pre>
+
+<dl><dt>Known Subclasses:</dt>
+<dd>
+      <ul class="subclass-list">
+<li><a href="elastodynamic.NLElastoDynamicsOperator-class.html">NLElastoDynamicsOperator</a></li><li>, <a href="elastodynamic.NPMLElastoDynamicsOperator-class.html">NPMLElastoDynamicsOperator</a></li>  </ul>
+</dd></dl>
+
 <hr />
 <p>An nD linear Elastodynamics operator.</p>
   <p>dq/dt - dF/dx - dG/dy - dH/dz = 0</p>
@@ -193,10 +181,27 @@
     </td><td class="summary">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td><span class="summary-sig"><a name="q"></a><span class="summary-sig-name">q</span>(<span class="summary-sig-arg">self</span>,
-        <span class="summary-sig-arg">w</span>)</span></td>
+          <td><span class="summary-sig"><a name="rho"></a><span class="summary-sig-name">rho</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">q</span>)</span></td>
           <td align="right" valign="top">
-            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.q">source&nbsp;code</a></span>
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.rho">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="wave_speed"></a><span class="summary-sig-name">wave_speed</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">q</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.wave_speed">source&nbsp;code</a></span>
             
           </td>
         </tr>
@@ -211,7 +216,7 @@
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td><span class="summary-sig"><a name="v"></a><span class="summary-sig-name">v</span>(<span class="summary-sig-arg">self</span>,
-        <span class="summary-sig-arg">w</span>)</span></td>
+        <span class="summary-sig-arg">q</span>)</span></td>
           <td align="right" valign="top">
             <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.v">source&nbsp;code</a></span>
             
@@ -228,7 +233,7 @@
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td><span class="summary-sig"><a name="P"></a><span class="summary-sig-name">P</span>(<span class="summary-sig-arg">self</span>,
-        <span class="summary-sig-arg">w</span>)</span></td>
+        <span class="summary-sig-arg">q</span>)</span></td>
           <td align="right" valign="top">
             <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.P">source&nbsp;code</a></span>
             
@@ -245,10 +250,9 @@
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td><span class="summary-sig"><a name="flux_num"></a><span class="summary-sig-name">flux_num</span>(<span class="summary-sig-arg">self</span>,
-        <span class="summary-sig-arg">wave_speed</span>,
         <span class="summary-sig-arg">q</span>,
         <span class="summary-sig-arg">fluxes</span>,
-        <span class="summary-sig-arg">bdry_tags_state_and_fluxes</span>)</span></td>
+        <span class="summary-sig-arg">bdry_tag_state_flux</span>)</span></td>
           <td align="right" valign="top">
             <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.flux_num">source&nbsp;code</a></span>
             
@@ -265,7 +269,7 @@
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td><span class="summary-sig"><a name="flux"></a><span class="summary-sig-name">flux</span>(<span class="summary-sig-arg">self</span>,
-        <span class="summary-sig-arg">w</span>)</span></td>
+        <span class="summary-sig-arg">q</span>)</span></td>
           <td align="right" valign="top">
             <span class="codelink"><a href="elastodynamic-pysrc.html#ElastoDynamicsOperator.flux">source&nbsp;code</a></span>
             
@@ -506,7 +510,7 @@
 <table border="0" cellpadding="0" cellspacing="0" width="100%%">
   <tr>
     <td align="left" class="footer">
-    Generated by Epydoc 3.0.1 on Tue Feb  7 16:03:31 2012
+    Generated by Epydoc 3.0.1 on Tue Dec  3 13:53:30 2013
     </td>
     <td align="right" class="footer">
       <a target="mainFrame" href="http://epydoc.sourceforge.net"

@@ -17,8 +17,8 @@ from hedge.models import HyperbolicOperator
 from hedge.optemplate import get_flux_operator, make_nabla, Field
 from hedge.optemplate import BoundarizeOperator, InverseMassOperator, BoundaryPair
 from hedge.optemplate.tools import make_vector_field
-from hedge.tools.symbolic import make_common_subexpression as cse
 from libraries.utils import Utils
+from pymbolic.primitives import make_common_subexpression as cse
 from pytools.obj_array import join_fields, make_obj_array
 
 

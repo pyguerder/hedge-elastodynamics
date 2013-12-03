@@ -53,39 +53,24 @@
 </table>
 <!-- ==================== CLASS DESCRIPTION ==================== -->
 <h1 class="epydoc">Class NPMLElastoDynamicsOperator</h1><p class="nomargin-top"><span class="codelink"><a href="elastodynamic-pysrc.html#NPMLElastoDynamicsOperator">source&nbsp;code</a></span></p>
-<center>
-<center>  <map id="uml_class_diagram_for_elastody_4" name="uml_class_diagram_for_elastody_4">
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#m" title="elastodynamic.ElastoDynamicsOperator.m" alt="" coords="553,180,945,199"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#rho_v" title="elastodynamic.ElastoDynamicsOperator.rho_v" alt="" coords="553,199,945,217"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#F" title="elastodynamic.ElastoDynamicsOperator.F" alt="" coords="553,217,945,236"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#q" title="elastodynamic.ElastoDynamicsOperator.q" alt="" coords="553,236,945,255"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#v" title="elastodynamic.ElastoDynamicsOperator.v" alt="" coords="553,255,945,273"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#P" title="elastodynamic.ElastoDynamicsOperator.P" alt="" coords="553,273,945,292"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#flux_num" title="elastodynamic.ElastoDynamicsOperator.flux_num" alt="" coords="553,292,945,311"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#add_sources" title="elastodynamic.ElastoDynamicsOperator.add_sources" alt="" coords="553,311,945,329"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#bind_sources" title="elastodynamic.ElastoDynamicsOperator.bind_sources" alt="" coords="553,329,945,348"/>
-<area shape="rect" id="node18" href="elastodynamic.ElastoDynamicsOperator-class.html#max_eigenvalue" title="elastodynamic.ElastoDynamicsOperator.max_eigenvalue" alt="" coords="553,348,945,367"/>
-<area shape="rect" id="node1" href="elastodynamic.ElastoDynamicsOperator-class.html" title="An nD linear Elastodynamics operator." alt="" coords="541,147,957,373"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator.PMLCoefficients-class.html" title="elastodynamic.NPMLElastoDynamicsOperator.PMLCoefficients" alt="" coords="17,417,1480,436"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#__init__" title="x.__init__(...) initializes x; see help(type(x)) for signature" alt="" coords="17,439,1480,457"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#F2" title="elastodynamic.NPMLElastoDynamicsOperator.F2" alt="" coords="17,457,1480,476"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#flux" title="elastodynamic.NPMLElastoDynamicsOperator.flux" alt="" coords="17,476,1480,495"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#bdry_flux" title="elastodynamic.NPMLElastoDynamicsOperator.bdry_flux" alt="" coords="17,495,1480,513"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#op_template" title="elastodynamic.NPMLElastoDynamicsOperator.op_template" alt="" coords="17,513,1480,532"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#bind" title="elastodynamic.NPMLElastoDynamicsOperator.bind" alt="" coords="17,532,1480,551"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#construct_scalar_coefficients" title="elastodynamic.NPMLElastoDynamicsOperator.construct_scalar_coefficients" alt="" coords="17,551,1480,569"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#coefficients_from_boxes" title="elastodynamic.NPMLElastoDynamicsOperator.coefficients_from_boxes" alt="" coords="17,569,1480,588"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#bounding_box" title="elastodynamic.NPMLElastoDynamicsOperator.bounding_box" alt="" coords="17,588,1480,607"/>
-<area shape="rect" id="node17" href="elastodynamic.NPMLElastoDynamicsOperator-class.html#coefficients_from_width" title=":param width: [x_l, y_l, z_l, x_r, y_r, z_r]" alt="" coords="17,607,1480,625"/>
-<area shape="rect" id="node4" href="elastodynamic.NPMLElastoDynamicsOperator-class.html" title="Implements a NPML as in" alt="" coords="5,393,1491,631"/>
-<area shape="rect" id="node2" href="elastodynamic.NLNPMLElastoDynamicsOperator-class.html" title="Implements NL NPML, based on the 2 previous classes" alt="" coords="633,651,865,690"/>
-<area shape="rect" id="node3" href="javascript:void(0);" title="A base class for Discontinuous Galerkin operators." alt="" coords="668,6,828,50"/>
-<area shape="rect" id="node19" href="javascript:void(0);" title="Estimate the largest stable timestep, given a time stepper `stepper_class`." alt="" coords="429,103,1069,121"/>
-<area shape="rect" id="node5" href="javascript:void(0);" title="A base class for hyperbolic Discontinuous Galerkin operators." alt="" coords="417,70,1081,127"/>
-</map>
-  <img src="uml_class_diagram_for_elastody_4.gif" alt='' usemap="#uml_class_diagram_for_elastody_4" ismap="ismap" class="graph-without-title" />
-</center>
-</center>
+<pre class="base-tree">
+                 object --+            
+                          |            
+      hedge.models.Operator --+        
+                              |        
+hedge.models.HyperbolicOperator --+    
+                                  |    
+             <a href="elastodynamic.ElastoDynamicsOperator-class.html">ElastoDynamicsOperator</a> --+
+                                      |
+                                     <strong class="uidshort">NPMLElastoDynamicsOperator</strong>
+</pre>
+
+<dl><dt>Known Subclasses:</dt>
+<dd>
+      <ul class="subclass-list">
+<li><a href="elastodynamic.NLNPMLElastoDynamicsOperator-class.html">NLNPMLElastoDynamicsOperator</a></li>  </ul>
+</dd></dl>
+
 <hr />
 <p>Implements a NPML as in</p>
   <p>YiFeng LI Ph'D p. 121-138</p>
@@ -144,6 +129,23 @@
       x.__init__(...) initializes x; see help(type(x)) for signature</td>
           <td align="right" valign="top">
             <span class="codelink"><a href="elastodynamic-pysrc.html#NPMLElastoDynamicsOperator.__init__">source&nbsp;code</a></span>
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="q"></a><span class="summary-sig-name">q</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">w</span>)</span></td>
+          <td align="right" valign="top">
+            <span class="codelink"><a href="elastodynamic-pysrc.html#NPMLElastoDynamicsOperator.q">source&nbsp;code</a></span>
             
           </td>
         </tr>
@@ -347,9 +349,10 @@
       <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#flux_num">flux_num</a></code>,
       <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#m">m</a></code>,
       <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#max_eigenvalue">max_eigenvalue</a></code>,
-      <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#q">q</a></code>,
+      <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#rho">rho</a></code>,
       <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#rho_v">rho_v</a></code>,
-      <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#v">v</a></code>
+      <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#v">v</a></code>,
+      <code><a href="elastodynamic.ElastoDynamicsOperator-class.html#wave_speed">wave_speed</a></code>
       </p>
     <p class="indent-wrapped-lines"><b>Inherited from <code>hedge.models.HyperbolicOperator</code></b>:
       <code>estimate_timestep</code>
@@ -565,7 +568,7 @@
 <table border="0" cellpadding="0" cellspacing="0" width="100%%">
   <tr>
     <td align="left" class="footer">
-    Generated by Epydoc 3.0.1 on Tue Feb  7 16:03:32 2012
+    Generated by Epydoc 3.0.1 on Tue Dec  3 13:53:30 2013
     </td>
     <td align="right" class="footer">
       <a target="mainFrame" href="http://epydoc.sourceforge.net"

@@ -54,7 +54,7 @@ def main(write_output=['vtu', 'receivers'],
     @param output_dir: directory where to write the output
     @param pml: None or NPML widths in this order: [x_l, y_l, z_l, x_r, y_r, z_r]
     @param sources: an array containing the coordinates of the source or None
-    @param source: a dict containing the parameters for the source functions
+    @param source_param: a dict containing the parameters for the source functions
     @param final_time: number of seconds of simulations to compute
     @param quiet_output: if True, only the main thread will print information
     @param nonlinearity_type: None (linear) or 'classical' (non-linear)
@@ -66,11 +66,11 @@ def main(write_output=['vtu', 'receivers'],
     rcon = guess_run_context(allow_features)
     rcon_init = guess_run_context(allow_features)
 
-    debug = []
+    debug = ['dump_optemplate_stages']
     dtype = numpy.float64
     if 'cuda' in allow_features:
         dtype = numpy.float32
-        debug = ['cuda_no_plan']
+        debug.append('cuda_no_plan')
 
     if rcon.is_head_rank and output_dir and not access(output_dir, F_OK):
         makedirs(output_dir)
