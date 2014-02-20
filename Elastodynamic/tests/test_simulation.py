@@ -77,3 +77,7 @@ class SimpleTests(SimulationTestCase):
              material_files = ['Materials/calcite.dat', 'Materials/calcite.dat', 'Materials/calcite.dat'],
              vtu_every=20)
         assert True
+
+    def test_simulation_2d_linear_plm_mpi(self):
+        from pytools.mpi import run_with_mpi_ranks
+        run_with_mpi_ranks(__file__, 2, lambda: test_simulation_2d_linear_plm())
