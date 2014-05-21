@@ -410,9 +410,7 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
             F = self.F(q)
             for i in range(self.len_f):
                 for j in range(self.len_f):
-                    Ceqij = Evaluate(mat, [material.Ceq[i,j] for material in self.materials])
-                    for k in range(self.len_f):
-                        C[i,j] = Ceqij
+                    C[i,j] = Evaluate(mat, [material.Ceq[i,j] for material in self.materials])
             return C
 
     def flux(self, q):
