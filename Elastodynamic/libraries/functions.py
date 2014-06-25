@@ -20,7 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see U{http://www.gnu.org/licenses/}.
 """
 
-from hedge.data import ITimeDependentGivenFunction 
+from hedge.data import ITimeDependentGivenFunction
+from math import sin, pi, exp
 
 
 class TimeRickerWaveletGivenFunction(ITimeDependentGivenFunction):
@@ -33,12 +34,10 @@ class TimeRickerWaveletGivenFunction(ITimeDependentGivenFunction):
         self.tD = tD
 
     def volume_interpolant(self, t, discr):
-        from math import exp, pi
         return (0.5 - (pi*self.fc)**2 * (t - self.tD)**2) * exp(-(pi*self.fc)**2 * (t - self.tD)**2)\
                 * self.gf.volume_interpolant(t, discr)
 
     def boundary_interpolant(self, t, discr, tag):
-        from math import exp, pi
         return (0.5 - (pi*self.fc)**2 * (t - self.tD)**2) * exp(-(pi*self.fc)**2 * (t - self.tD)**2)\
                 * self.gf.boundary_interpolant(t, discr, tag)
 
@@ -52,11 +51,25 @@ class SinusGivenFunction(ITimeDependentGivenFunction):
         self.tD = tD
 
     def volume_interpolant(self, t, discr):
-        from math import sin, pi
         return (0.5 * sin(2*pi*self.fc*t))\
                 * self.gf.volume_interpolant(t, discr)
 
     def boundary_interpolant(self, t, discr, tag):
-        from math import sin, pi
         return (0.5 * sin(2*pi*self.fc*t))\
+                * self.gf.boundary_interpolant(t, discr, tag)
+
+class SineBurstGivenFunction(ITimeDependentGivenFunction):
+    """Modulates an :class:`ITimeDependentGivenFunction` by a sinus in an envelope in time.
+    """
+    def __init__(self, gf, fc, tD):
+        self.gf = gf
+        self.fc = fc
+        self.tD = tD
+
+    def volume_interpolant(self, t, discr):
+        return (10 * 1e3 * sin(2 * pi * self.fc * t) * exp( - (t - 10 / self.fc) * self.fc / 4)**2) \
+                * self.gf.volume_interpolant(t, discr)
+
+    def boundary_interpolant(self, t, discr, tag):
+        return (10 * 1e3 * sin(2 * pi * self.fc * t) * exp( - (t - 10 / self.fc) * self.fc / 4)**2) \
                 * self.gf.boundary_interpolant(t, discr, tag)

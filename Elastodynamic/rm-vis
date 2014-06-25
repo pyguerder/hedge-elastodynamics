@@ -1,6 +1,6 @@
 #! /bin/bash
 
-find . -maxdepth 1 \
+find output -maxdepth 1 \
   \( -name '*.vtk' \
   -o -name '*.vtu' \
   -o -name '*.pvtu' \
@@ -16,6 +16,6 @@ find . -maxdepth 1 \
   -o -name '*.png' \)\
   -print0 | xargs -0 -r rm
 
-rm -rf output/*
+# rm -rf output/*
 
 rm -f /tmp/codepy*/lock

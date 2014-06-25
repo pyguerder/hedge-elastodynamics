@@ -39,22 +39,22 @@ class Material:
             print >> sys.stderr, 'Failed to open', filename, '-', message
             sys.exit(1);
 
-        # Read the mass density.
+        # Read the mass density
         if 'Density' in constants:
             self.rho = self.Read_FloatValue('Density')
-        
+
         # Read the permeability
         if 'Permeability' in constants:
             self.mu = self.Read_FloatValue('Permeability')
-        
+
         # Read the permittivity
         if 'Permittivity' in constants:
             self.epsilon = self.Read_Matrix('Permittivity', 3, 3)
-        
+
         # Read the non linearity type
         if 'NonlinearityType' in constants:
             self.nonlinearity_type = self.Read_TextValue('NonlinearityType')
-        
+
         # Read the linear elastic constants
         if 'LinearElasticConstants' in constants:
             self.C, self.elastic_type = self.Read_SymMatrix('LinearElasticConstants')
@@ -62,11 +62,27 @@ class Material:
         # Read the linear elastic constants
         if 'PiezoElectricConstants' in constants:
             self.e = self.Read_Matrix('PiezoElectricConstants', 3, 6)
-        
+
         # Read the nonlinear elastic constants
         if 'NonlinearElasticConstants' in constants:
             self.Cnl = self.Read_Tensor('NonlinearElasticConstants')
-           
+
+        # Read the linear elastic constant lambda
+        if 'ElasticConstant_lambda' in constants:
+            self.lambda_ = self.Read_FloatValue('ElasticConstant_lambda')
+
+        # Read the linear elastic constant mu
+        if 'ElasticConstant_mu' in constants:
+            self.mu = self.Read_FloatValue('ElasticConstant_mu')
+
+        # Read the quadratic elastic constant f
+        if 'QuadraticElasticConstant_f' in constants:
+            self.f = self.Read_FloatValue('QuadraticElasticConstant_f')
+
+        # Read the cubic elastic constant h
+        if 'CubicElasticConstant_h' in constants:
+            self.h = self.Read_FloatValue('CubicElasticConstant_h')
+
         # close file
         self.file.close()
     
@@ -102,6 +118,7 @@ class Material:
                 print self.filename, 'contains no valid', name , 'section.'
             return None
         if (myline != '$End' + name + '\n') and self.print_output:
+            #FIXME: we should not impose a newline at the end of file
             print self.filename, 'has an invalid', name, 'section.'
         return Cnl
     

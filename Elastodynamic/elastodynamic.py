@@ -35,7 +35,7 @@ def Evaluate(mat, v):
 
 class ElastoDynamicsOperator(HyperbolicOperator):
     """
-    An nD linear Elastodynamics operator.
+    Implements an linear Elastodynamics operator.
 
     dq/dt - dF/dx - dG/dy - dH/dz = 0
 
@@ -57,13 +57,14 @@ class ElastoDynamicsOperator(HyperbolicOperator):
                  dimensions,
                  material,
                  speed,
+                 nonlinearity_type = None,
                  boundaryconditions_tag = \
                     { 'stressfree' : 'stressfree',
                       'fixed' : 'fixed',
                       'open' : 'open' },
                  materials = None,
                  sources = None,
-                 flux_type = "lf",
+                 flux_type = "lf"
                  ):
         """
         @param sources: should be a table of functions
@@ -250,7 +251,7 @@ class ElastoDynamicsOperator(HyperbolicOperator):
     def bind_sources(self, t, discr):
         kwargs = {}
         for source in self.sources:
-            kwargs[source] = self.sources[source].volume_interpolant(t, discr)
+            kwargs[source] = self.sources[source].volume_interpolant(t, discr).astype(discr.default_scalar_type)
         return kwargs
 
     def op_template(self):
@@ -295,8 +296,8 @@ class ElastoDynamicsOperator(HyperbolicOperator):
         return self.max_speed
 
 
-class NLElastoDynamicsOperator(ElastoDynamicsOperator):
-    """An nD non linear Elastodynamics operator.
+class QuadraticElastoDynamicsOperator(ElastoDynamicsOperator):
+    """Implements a quadratic Elastodynamics operator.
 
     see YiFeng LI PhD p. 41
 
@@ -501,7 +502,7 @@ class NLElastoDynamicsOperator(ElastoDynamicsOperator):
 
 
 class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
-    """Implements a NPML as in
+    """Implements an operator with NPML as in
 
     YiFeng LI Ph'D p. 121-138
     """
@@ -701,7 +702,7 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
     # Sigma business
     def construct_scalar_coefficients(self, discr, node_coord,
             i_min, i_max, o_min, o_max, sigma_exponent, alpha_exponent, kappa_exponent):
-        assert o_min <= i_min <= i_max <= o_max
+        assert o_min <= i_min <= i_max <= o_max, "Wrong PML shape"
 
         if o_min != i_min:
             l_dist = (i_min - node_coord) / (i_min-o_min)
@@ -830,14 +831,13 @@ class NPMLElastoDynamicsOperator(ElastoDynamicsOperator):
                 sigma_exponent, alpha_exponent, kappa_exponent, dtype)
 
 
-class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsOperator):
+class QuadraticNPMLElastoDynamicsOperator(QuadraticElastoDynamicsOperator, NPMLElastoDynamicsOperator):
     """
-    Implements NL NPML, based on the 2 previous classes
+    Implements quadratic Elastodynamics operator with NPML, based on the 2 previous classes
     """
 
     def __init__(self, *args, **kwargs):
-        #self.add_decay = kwargs.pop("add_decay", True)
-        NLElastoDynamicsOperator.__init__(self, *args, **kwargs)
+        QuadraticElastoDynamicsOperator.__init__(self, *args, **kwargs)
         self.dimF = [0, 1, 4, 9]
         self.len_f = self.dimF[self.dimensions]
         self.len_q = self.dimensions + self.len_f + 1
@@ -936,6 +936,158 @@ class NLNPMLElastoDynamicsOperator(NLElastoDynamicsOperator, NPMLElastoDynamicsO
             F = [P[0],P[8],P[7],v[0],v[2],v[1],
                  P[5],P[1],P[6],v[1],v[2],v[0],
                  P[4],P[3],P[2],v[2],v[1],v[0]]
+        else:
+            raise ValueError("Invalid dimension")
+
+        res_f2 = numpy.zeros((dim*dim*2), dtype=object)
+        for i in range(dim):
+            for j in range(dim*2):
+                res_f2[i*dim*2+j] = (-1)*F2[i*dim*2+j]*alpha[i]-sigma[i]/kappa[i]*(F2[i*dim*2+j]+F[i*dim*2+j])
+
+        return join_fields(res_q, res_f2)
+
+
+class CubicNPMLElastoDynamicsOperator(NPMLElastoDynamicsOperator):
+    """
+    Implements a cubic Elastodynamics operator with NPML, based on the *linear* class (so, symmetries apply)
+    """
+
+    def __init__(self, *args, **kwargs):
+        NPMLElastoDynamicsOperator.__init__(self, *args, **kwargs)
+        self.dimF = [0, 1, 4, 9]
+        self.len_f = self.dimF[self.dimensions]
+        self.len_q = self.dimensions + self.len_f + 1
+        self.len_f2 = self.dimensions * self.dimensions * 2
+
+    def P(self, q):
+        Pi = numpy.zeros(self.len_f, dtype=object)
+        dim = self.dimensions
+        mat = self.m(q)
+        if dim == 1:
+            raise NotImplementedError
+        elif dim == 2:
+            (e1, e2, e6, _) = self.F(q)
+            mu = Evaluate(mat, [material.mu for material in self.materials])
+            lambda_ = Evaluate(mat, [material.lambda_ for material in self.materials])
+            f = Evaluate(mat, [material.f for material in self.materials])
+            h = Evaluate(mat, [material.h for material in self.materials])
+            #(e, f, g, h, l) = (0, 0, 0, 0, 0)
+            #Pi[0] = 2 * mu * e1 + lambda_ * (e1 + e2) \
+            #  + e * (e1**2 + e2**2 + 2 * e6**2) + 2 * e * (e1 + e2) * e1 + 3 * f * (e1**2 + e2**2) \
+            #  + 4 * g * (e1**2 + e2**2 + 2 * e6**2) * e1 + h * (e1**3 + e2**3) \
+            #  + l * (e1**2 + e2**2) * e1 + l * (e1 + e2) * (e1**2 + e2**2 + 2 * e6**2)
+            #Pi[1] = 2 * mu * e2 + lambda_ * (e1 + e2) \
+            #  + e * (e1**2 + e2**2 + 2 * e6**2) + 2 * e * (e1 + e2) * e2 + 3 * f * (e1**2 + e2**2) \
+            #  + 4 * g * (e1**2 + e2**2 + 2 * e6**2) * e2 + h * (e1**3 + e2**3) \
+            #  + l * (e1**2 + e2**2) * e2 + l * (e1 + e2) * (e1**2 + e2**2 + 2 * e6**2)
+	    #Pi[2] = 2 * mu * e6 + e * (e1**2 + e2**2 + 2 * e6**2) + 2 * e * (e1 + e2) * e6 \
+            #   + 4 * g * (e1**2 + e2**2 + 2 * e6**2) * e6 + l * e6 * (e1**2 + e2**2)
+            Pi[0] = 2 * mu * e1 + lambda_ * (e1 + e2) + 3 * f * (e1**2 + e2**2) + h * (e1**3 + e2**3)
+            Pi[1] = 2 * mu * e2 + lambda_ * (e1 + e2) + 3 * f * (e1**2 + e2**2) + h * (e1**3 + e2**3)
+	    Pi[2] = 2 * mu * e6
+        elif dim == 3:
+            raise NotImplementedError
+        else:
+            raise ValueError("Invalid dimension")
+        return Pi
+
+    def flux(self, w, k):
+        F2 = self.F2(w) #get F'' from state vector w
+        q = self.q(w)
+        P = self.P(q)
+        v = self.v(q)
+        v_null = Field('state_null')
+
+        dim = self.dimensions
+
+        # One entry for each flux direction
+        if dim == 1:
+            raise NotImplementedError
+            #return [cse(join_fields(
+            #           v_null,
+            #            (P[0]+F2[0])/k[0],  # flux rho_v
+            #            (v[0]+F2[1])/k[0]   # flux F
+            #            ), "x_flux")]
+        elif dim == 2:
+            return [cse(join_fields(
+                        v_null, (P[0]+F2[0])/k[0],(P[3]+F2[1])/k[0],      # flux rho_v
+                        (v[0]+F2[2])/k[0],v_null,v_null,(v[1]+F2[3])/k[0] # flux F
+                        ), "x_flux"),
+                    cse(join_fields(
+                        v_null, (P[2]+F2[4])/k[1],(P[1]+F2[5])/k[1],      # flux rho_v
+                        v_null,(v[1]+F2[6])/k[1],(v[0]+F2[7])/k[1],v_null # flux F
+                        ), "y_flux")]
+        elif dim == 3:
+            raise NotImplementedError
+            #return [cse(join_fields(
+            #            v_null, (P[0]+F2[0])/k[0],(P[8]+F2[1])/k[0],(P[7]+F2[2])/k[0],                                     # flux rho_v
+            #            (v[0]+F2[3])/k[0],v_null,v_null,v_null,v_null,v_null,v_null,(v[2]+F2[4])/k[0],(v[1]+F2[5])/k[0]    # flux F
+            #            ), "x_flux"),
+            #        cse(join_fields(
+            #            v_null, (P[5]+F2[6])/k[1],(P[1]+F2[7])/k[1],(P[6]+F2[8])/k[1],                                     # flux rho_v
+            #            v_null,(v[1]+F2[9])/k[1],v_null,v_null,v_null,(v[0]+F2[10])/k[1],(v[2]+F2[11])/k[1],v_null,v_null  # flux F
+            #            ), "y_flux"),
+            #        cse(join_fields(
+            #            v_null, (P[4]+F2[12])/k[2],(P[3]+F2[13])/k[2],(P[2]+F2[14])/k[2],                                  # flux rho_v
+            #            v_null,v_null,(v[2]+F2[15])/k[2],(v[1]+F2[16])/k[2],(v[0]+F2[17])/k[2],v_null,v_null,v_null,v_null # flux F
+            #            ), "z_flux")]
+        else:
+            raise ValueError("Invalid dimension")
+
+    def op_template(self):
+        dim = self.dimensions
+        q = make_vector_field('q', self.len_q)
+        f2 = make_vector_field('f2', self.len_f2)
+        w = join_fields(q, f2)
+        dim_subset = (True,) * dim + (False,) * (3-dim)
+
+        def pad_vec(v, subset):
+            result = numpy.zeros((3,), dtype=object)
+            result[numpy.array(subset, dtype=bool)] = v
+            return result
+
+        sigma = pad_vec(make_vector_field('sigma', dim),dim_subset)
+        alpha = pad_vec(make_vector_field('alpha', dim),dim_subset)
+        kappa = pad_vec(make_vector_field('kappa', dim),dim_subset)
+
+        fluxes = self.flux(w, kappa)
+
+        # Boundary conditions
+        q_bc_stressfree = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(q)
+        q_bc_stressfree_null = BoundarizeOperator(self.boundaryconditions_tag['stressfree'])(0)
+        q_bc_fixed = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(q)
+        q_bc_fixed_null = BoundarizeOperator(self.boundaryconditions_tag['fixed'])(0)
+
+        all_tags_and_bcs = [
+                (self.boundaryconditions_tag['stressfree'], q_bc_stressfree, q_bc_stressfree_null),
+                (self.boundaryconditions_tag['fixed'], q_bc_fixed, q_bc_fixed_null)
+                           ]
+
+        bdry_tag_state_flux = [(tag, bc, self.bdry_flux(bc, bc_null, tag))
+                               for tag, bc, bc_null in all_tags_and_bcs]
+
+        # Entire operator
+        nabla = make_nabla(dim)
+        res_q = (numpy.dot(nabla, fluxes) + InverseMassOperator()
+                 * (self.flux_num(q, fluxes, bdry_tag_state_flux)))
+        res_q = self.add_sources(res_q)
+
+        F2 = self.F2(w)
+        F = self.F(q)
+
+        P = self.P(q)
+        v = self.v(q)
+        if dim == 1:
+            raise NotImplementedError
+            #F = [P[0],v[0]]
+        elif dim == 2:
+            F = [P[0],P[3],v[0],v[1],
+                 P[2],P[1],v[1],v[0]]
+        elif dim == 3:
+            raise NotImplementedError
+            #F = [P[0],P[8],P[7],v[0],v[2],v[1],
+            #     P[5],P[1],P[6],v[1],v[2],v[0],
+            #     P[4],P[3],P[2],v[2],v[1],v[0]]
         else:
             raise ValueError("Invalid dimension")
 

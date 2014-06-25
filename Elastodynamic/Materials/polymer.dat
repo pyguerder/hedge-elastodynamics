@@ -1,0 +1,28 @@
+$Density
+1000
+$EndDensity
+
+$LinearElasticConstants
+17068185.9  8534092.9  8534092.9     0       0         0
+  *        17068185.9  8534092.9     0       0         0
+  *          *        17068185.9     0       0         0
+  *          *          *        4267046.5   0         0
+  *          *          *            *     4267046.5   0
+  *          *          *            *       *       4267046.5
+$EndLinearElasticConstants
+
+$ElasticConstant_lambda
+8534092.9
+$EndElasticConstant_lambda
+
+$ElasticConstant_mu
+4267046.5
+$EndElasticConstant_mu
+
+$QuadraticElasticConstant_f
+128011393.9
+$EndQuadraticElasticConstant_f
+
+$CubicElasticConstant_h
+1280113939.1
+$EndCubicElasticConstant_h

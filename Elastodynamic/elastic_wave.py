@@ -134,20 +134,25 @@ def main(write_output=['vtu', 'receivers'],
         if print_output:
             print "No source specified",
         if mesh_file:
-            print "trying to find one in", mesh_file
+            if print_output:
+                print "trying to find one in", mesh_file
             sources = gmsh.pointSources
             if sources != []:
                 source = sources[0]
-                print "Using source", source, "from", mesh_file
+                if print_output:
+                    print "Using source", source, "from", mesh_file
             else:
-                print "Error: no source!"
+                if print_output:
+                    print "Error: no source!"
         else:
-            print "and no mesh file!"
+            if print_output:
+                print "and no mesh file!"
             raise Exception('Error: Could not find any source!')
 
     def source_v_x(pos, el):
         pos = pos - source
-        return exp(-numpy.dot(pos, pos) / source_param['sigma'] ** 2)
+        #return exp(-numpy.dot(pos, pos) / source_param['sigma'] ** 2)
+        return exp(- pos[0]**2 / source_param['sigma'] ** 2)
 
     def source_v_y(pos, el):
         pos = pos - source
@@ -158,14 +163,18 @@ def main(write_output=['vtu', 'receivers'],
         return 0
 
     source_type = None
-    if source_param['type'] == 'sinus':
+    if source_param['type'] == 'Sinus':
         from libraries.functions import SinusGivenFunction
         source_type = 'SinusGivenFunction'
+    if source_param['type'] == 'SineBurst':
+        from libraries.functions import SineBurstGivenFunction
+        source_type = 'SineBurstGivenFunction'
     elif source_param['type'] == 'Ricker':
         from libraries.functions import TimeRickerWaveletGivenFunction
         source_type = 'TimeRickerWaveletGivenFunction'
     assert source_type is not None, "Failed to define source function!"
     source_function = locals()[source_type]
+    print "Using source type:", source_type
 
     from hedge.data import make_tdep_given, TimeIntervalGivenFunction
 
@@ -184,11 +193,21 @@ def main(write_output=['vtu', 'receivers'],
 
     materials = []
     constants = ['Density', 'LinearElasticConstants']
-    if nonlinearity_type is not None:
+    if nonlinearity_type == 'cubic':
+        constants.append('ElasticConstant_lambda')
+        constants.append('ElasticConstant_mu')
+        constants.append('QuadraticElasticConstant_f')
+        constants.append('CubicElasticConstant_h')
+    elif nonlinearity_type is not None:
         constants.append('NonlinearElasticConstants')
     for material_file in material_files:
         material = Material(material_file, constants, dtype, print_output)
-        if nonlinearity_type is not None:
+        if nonlinearity_type == 'cubic':
+            assert material.lambda_ is not None, "Error: Missing elastic constant lambda in " + file
+            assert material.mu is not None, "Error: Missing elastic constant mu in " + file
+            assert material.f is not None, "Error: Missing quadratic constant f in " + file
+            assert material.h is not None, "Error: Missing cubic constant h in " + file
+        elif nonlinearity_type is not None:
             # In the nonlinear mode, materials MUST have a nonlinear constants
             assert material.Cnl is not None, "Error: Missing nonlinear constants in " + file
         materials.append(material)
@@ -241,14 +260,21 @@ def main(write_output=['vtu', 'receivers'],
               }
 
     operator = None
-    if nonlinearity_type is not None:
+    if nonlinearity_type == 'cubic':
         kwargs['nonlinearity_type'] = nonlinearity_type
         if pml:
-            from elastodynamic import NLNPMLElastoDynamicsOperator
-            operator = 'NLNPMLElastoDynamicsOperator'
+            from elastodynamic import CubicNPMLElastoDynamicsOperator
+            operator = 'CubicNPMLElastoDynamicsOperator'
         else:
-            from elastodynamic import NLElastoDynamicsOperator
-            operator = 'NLElastoDynamicsOperator'
+            raise NotImplementedError
+    elif nonlinearity_type is not None:
+        kwargs['nonlinearity_type'] = nonlinearity_type
+        if pml:
+            from elastodynamic import QuadraticNPMLElastoDynamicsOperator
+            operator = 'QuadraticNPMLElastoDynamicsOperator'
+        else:
+            from elastodynamic import QuadraticElastoDynamicsOperator
+            operator = 'QuadraticElastoDynamicsOperator'
     else:
         if pml:
             from elastodynamic import NPMLElastoDynamicsOperator
@@ -281,7 +307,7 @@ def main(write_output=['vtu', 'receivers'],
                     point_receiver.done_dt = False
                     point_receiver.id = i
                     point_receiver.coordinates = receiver
-                    point_receiver.filename = "receiver_%s_%s.txt" % (rcon.rank, point_receiver.id)
+                    point_receiver.filename = "receiver_%s.txt" % repr(point_receiver.coordinates)
                 except:
                     if not quiet_output:
                         print "Receiver ignored (point not found):", receiver
@@ -354,8 +380,10 @@ def main(write_output=['vtu', 'receivers'],
             len_fields += op.len_f2
         fields = make_obj_array([discr.volume_zeros(dtype=dtype) for _ in range(len_fields)])
 
+        vector_primitive_factory = None if 'cuda' in allow_features else discr.get_vector_primitive_factory()
+
         from hedge.timestep import times_and_steps, LSRK4TimeStepper
-        stepper = LSRK4TimeStepper(dtype=dtype)
+        stepper = LSRK4TimeStepper(vector_primitive_factory=vector_primitive_factory, dtype=dtype)
         max_dt_getter = lambda t: op.estimate_timestep(discr, stepper=stepper, t=t, fields=fields)
         step_it = times_and_steps(final_time=final_time, logmgr=None, max_dt_getter=max_dt_getter)
 
@@ -390,16 +418,17 @@ def main(write_output=['vtu', 'receivers'],
                     val = point_receiver.evaluator(variables)
                     if not point_receiver.done_dt:
                         point_receiver.pointfile.write("# dt: %g s\n" % dt)
+                        point_receiver.pointfile.write("# m: 1 field\n")
                         point_receiver.pointfile.write("# v: %d fields\n" % dim)
                         point_receiver.pointfile.write("# F: %d fields\n" % op.len_f)
-                        point_receiver.pointfile.write("# Coordinates: %s\nt " % repr(point_receiver.coordinates))
+                        point_receiver.pointfile.write("# Coordinates: %s\n# t m " % repr(point_receiver.coordinates))
                         for i in range(dim):
                             point_receiver.pointfile.write('v%s ' % i)
                         for i in range(op.len_f):
                             point_receiver.pointfile.write("F%s " % i)
                         point_receiver.done_dt = True
                     point_receiver.pointfile.write("\n%s " % format(t))
-                    for i in range(len(val)):
+                    for i in range(1 + dim + op.len_f):
                         sum_val[i] += val[i]
                         point_receiver.pointfile.write("%s " % format(val[i]))
 
