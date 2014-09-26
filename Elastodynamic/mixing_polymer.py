@@ -16,23 +16,23 @@ from elastic_wave import main as simulation
 import numpy
 
 simulation(write_output=['vtu', 'receivers'],
-           allow_features=['mpi', 'cuda'],
+           allow_features=['mpi'],
            dim=2,
            order=3,
            stfree_tag=TAG_NONE,
            fix_tag=TAG_ALL,
            op_tag=TAG_NONE,
            flux_type="lf",
-           max_steps=1e6,
-           output_dir='Mixing2D_rand_heterogeneous_5e4_cuda_cq_40Hz',
+           max_steps=25e3,
+           output_dir='Mixing2D_polymer_1.3e4_mpi_cq_40Hz',
            pml=[5, 0, 0, 5, 0, 0],
            sources=numpy.array([-19, 0.0]),
            source_param={'type': 'SineBurst', 'sigma':1, 'fc':40, 'td':0.0, 'begin':0, 'end':0.4},
            final_time=1,
            quiet_output=True,
            nonlinearity_type='cubic',
-           mesh_file = 'Meshes/Mixing2D_rand.msh',
+           mesh_file = 'Meshes/Mixing2D.msh',
            periodicity = [None, ('minus_y', 'plus_y')],
-           material_files = ['Materials/PDMS.dat', 'Materials/polymer.dat'],
-           vtu_every=1000)
+           material_files = ['Materials/polymer.dat', 'Materials/polymer.dat'],
+           vtu_every=500)
 

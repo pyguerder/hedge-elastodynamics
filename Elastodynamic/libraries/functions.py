@@ -58,6 +58,22 @@ class SinusGivenFunction(ITimeDependentGivenFunction):
         return (0.5 * sin(2*pi*self.fc*t))\
                 * self.gf.boundary_interpolant(t, discr, tag)
 
+class ModulatedSinusGivenFunction(ITimeDependentGivenFunction):
+    """Modulates an :class:`ITimeDependentGivenFunction` by an amplitude modulated sinus in time.
+    """
+    def __init__(self, gf, fc, im):
+        self.gf = gf
+        self.fc = fc
+        self.im = im
+
+    def volume_interpolant(self, t, discr):
+        return 0.5 * (sin(2*pi*self.fc*t) * self.im + 1.0)\
+                * self.gf.volume_interpolant(t, discr)
+
+    def boundary_interpolant(self, t, discr, tag):
+        return 0.5 * (sin(2*pi*self.fc*t) * self.im + 1.0)\
+                * self.gf.boundary_interpolant(t, discr, tag)
+
 class SineBurstGivenFunction(ITimeDependentGivenFunction):
     """Modulates an :class:`ITimeDependentGivenFunction` by a sinus in an envelope in time.
     """
@@ -67,9 +83,9 @@ class SineBurstGivenFunction(ITimeDependentGivenFunction):
         self.tD = tD
 
     def volume_interpolant(self, t, discr):
-        return (10 * 1e3 * sin(2 * pi * self.fc * t) * exp( - (t - 10 / self.fc) * self.fc / 4)**2) \
+        return 5e4 * sin(2 * pi * self.fc * t) * exp( - ((t - 10 / self.fc) * self.fc / 4)**2) \
                 * self.gf.volume_interpolant(t, discr)
 
     def boundary_interpolant(self, t, discr, tag):
-        return (10 * 1e3 * sin(2 * pi * self.fc * t) * exp( - (t - 10 / self.fc) * self.fc / 4)**2) \
+        return 5e4 * sin(2 * pi * self.fc * t) * exp( - ((t - 10 / self.fc) * self.fc / 4)**2) \
                 * self.gf.boundary_interpolant(t, discr, tag)

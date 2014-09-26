@@ -166,9 +166,12 @@ def main(write_output=['vtu', 'receivers'],
     if source_param['type'] == 'Sinus':
         from libraries.functions import SinusGivenFunction
         source_type = 'SinusGivenFunction'
-    if source_param['type'] == 'SineBurst':
+    elif source_param['type'] == 'SineBurst':
         from libraries.functions import SineBurstGivenFunction
         source_type = 'SineBurstGivenFunction'
+    elif source_param['type'] == 'Modulated_sinus':
+        from libraries.functions import ModulatedSinusGivenFunction
+        source_type = 'ModulatedSinusGivenFunction'
     elif source_param['type'] == 'Ricker':
         from libraries.functions import TimeRickerWaveletGivenFunction
         source_type = 'TimeRickerWaveletGivenFunction'
@@ -295,6 +298,8 @@ def main(write_output=['vtu', 'receivers'],
 
     receivers = []
     point_receivers = []
+    if write_output and print_output:
+        print "Using output dir:", output_dir
     if "receivers" in write_output:
         i = 0
         if mesh_file:
@@ -356,7 +361,7 @@ def main(write_output=['vtu', 'receivers'],
     if 'receivers' in write_output:
         for point_receiver in point_receivers:
             point_receiver.pointfile = open(point_receiver.filename, "wt")
-        sumfile = open("receiver_%s_sum.txt" % rcon.rank, "wt")
+        #sumfile = open("receiver_%s_sum.txt" % rcon.rank, "wt")
 
     # End of visualization definition ---
     # Bind the operator to the discretization ---
@@ -412,8 +417,8 @@ def main(write_output=['vtu', 'receivers'],
 
             if 'receivers' in write_output and point_receivers != []:
                 variables = discr.convert_volume(fields, "numpy")
-                sum_val = numpy.zeros(len(fields))
-                sumfile.write("\n%s " % format(t))
+                #sum_val = numpy.zeros(len(fields))
+                #sumfile.write("\n%s " % format(t))
                 for point_receiver in point_receivers:
                     val = point_receiver.evaluator(variables)
                     if not point_receiver.done_dt:
@@ -429,11 +434,11 @@ def main(write_output=['vtu', 'receivers'],
                         point_receiver.done_dt = True
                     point_receiver.pointfile.write("\n%s " % format(t))
                     for i in range(1 + dim + op.len_f):
-                        sum_val[i] += val[i]
+                        #sum_val[i] += val[i]
                         point_receiver.pointfile.write("%s " % format(val[i]))
 
-                for i in range(len(val)):
-                    sumfile.write("%s " % format(sum_val[i]))
+                #for i in range(len(val)):
+                    #sumfile.write("%s " % format(sum_val[i]))
 
             fields = stepper(fields, t, dt, rhs)
 
@@ -444,7 +449,7 @@ def main(write_output=['vtu', 'receivers'],
         if 'receivers' in write_output:
             for point_receiver in point_receivers:
                 point_receiver.pointfile.close()
-            sumfile.close()
+            #sumfile.close()
 
         discr.close()
         if output_dir:

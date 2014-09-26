@@ -1,5 +1,5 @@
 $Density
-1000
+991.3
 $EndDensity
 
 $LinearElasticConstants
@@ -20,7 +20,7 @@ $ElasticConstant_mu
 $EndElasticConstant_mu
 
 $QuadraticElasticConstant_f
-128011393.9
+128011393.91
 $EndQuadraticElasticConstant_f
 
 $CubicElasticConstant_h

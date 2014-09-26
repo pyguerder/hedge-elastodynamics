@@ -1069,7 +1069,8 @@ class CubicNPMLElastoDynamicsOperator(NPMLElastoDynamicsOperator):
         # Entire operator
         nabla = make_nabla(dim)
         res_q = (numpy.dot(nabla, fluxes) + InverseMassOperator()
-                 * (self.flux_num(q, fluxes, bdry_tag_state_flux)))
+                 * (self.flux_num(q, fluxes, bdry_tag_state_flux))
+                 - 0.2 * sum(sigma[i] for i in range(dim)) * q)
         res_q = self.add_sources(res_q)
 
         F2 = self.F2(w)
